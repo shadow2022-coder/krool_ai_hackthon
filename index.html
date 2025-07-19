@@ -59,7 +59,7 @@
 <body>
   <div class="container">
     <h2>Hold & Speak → Hear AI Reply</h2>
-    <textarea id="transcript" readonly placeholder="Your speech and AI reply appear here…"></textarea><br>
+    <textarea id="transcript" readonly placeholder="Your speech and AI reply…"></textarea><br>
     <button id="speakBtn">Hold to Speak</button>
   </div>
 
@@ -76,7 +76,7 @@
 
     let isListening = false;
 
-    // When user presses down → start listening
+    // Start listening
     speakBtn.addEventListener("mousedown", () => {
       if (!isListening) {
         isListening = true;
@@ -86,7 +86,7 @@
       }
     });
 
-    // When user releases → stop listening
+    // Stop listening
     speakBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
@@ -95,27 +95,27 @@
       }
     });
 
-    // On speech result → send to n8n and handle reply
+    // Handle result
     recognition.onresult = async (e) => {
       const userText = e.results[0][0].transcript;
       transcriptBox.value = "You: " + userText;
 
       try {
-        // Send text to your n8n webhook (GET)
+        // Fetch plain-text reply
         const res = await fetch(
           `${WEBHOOK_URL}?text=${encodeURIComponent(userText)}`,
           { method: "GET", mode: "cors" }
         );
         if (!res.ok) throw new Error(res.statusText);
 
-        // Expect JSON: { reply: "AI’s response" }
-        const { reply } = await res.json();
+        // Read as text, not JSON
+        const reply = await res.text();
         transcriptBox.value += "\nAI: " + reply;
 
-        // Speak the AI reply using tts‑speak
+        // Speak it
         ttsSpeak
-          .setVoice('en-US')   // optional: choose voice code
-          .speak(reply)        // returns a Promise
+          .setVoice('en-US')   // optional
+          .speak(reply)
           .catch(console.error);
 
       } catch (err) {
