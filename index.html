@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Therapy AI</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.3/dist/vosk.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="status-indicator">
+        <span class="live-dot"></span>
+        <span class="live-text">Therapy AI</span>
+      </div>
+      <button id="history-btn" class="history-btn">⋮</button>
+    </header>
+
+    <!-- Main Chat Area -->
+    <main class="chat-area">
+      <!-- Processing Orb -->
+      <div id="processing-orb" class="processing-orb">
+        <div class="orb-inner">
+          <span id="orb-status">Tap to start</span>
+        </div>
+        <div class="processing-dots">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div id="chat-messages" class="chat-messages">
+        <!-- Messages will be dynamically added here -->
+      </div>
+    </main>
+
+    <!-- Bottom Controls -->
+    <footer class="controls">
+      <div class="control-buttons">
+        <button id="mic-btn" class="control-btn primary" aria-label="Start recording">
+          <span class="mic-icon">🎤</span>
+        </button>
+        <button id="pause-btn" class="control-btn" aria-label="Pause" disabled>
+          <span>⏸️</span>
+        </button>
+        <button id="stop-btn" class="control-btn danger" aria-label="Stop session">
+          <span>⏹️</span>
+        </button>
+      </div>
+    </footer>
+
+    <!-- History Sidebar -->
+    <aside id="history-sidebar" class="history-sidebar hidden">
+      <div class="history-header">
+        <h3>Conversation History</h3>
+        <button id="close-history" class="close-btn">✕</button>
+      </div>
+      <div class="history-content">
+        <ul id="history-list" class="history-list"></ul>
+        <button id="clear-history" class="clear-btn">Clear All History</button>
+      </div>
+    </aside>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
