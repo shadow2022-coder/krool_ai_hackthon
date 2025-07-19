@@ -1,357 +1,199 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8" />
-    <title>STT + Automatic TTS Web App</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background: #f0f0f0; /* Light background to make the dark container stand out */
-            color: #d4d4d4;
-            overflow: hidden; /* Hide scrollbars if any elements go out of bounds */
-        }
 
-        .container {
-            background: #000000; /* Pure black background for the "phone screen" look */
-            padding: 1.5rem; /* Reduced padding to fit the screen */
-            border-radius: 20px; /* More rounded corners for the "phone" look */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* Stronger, darker shadow */
-            text-align: center;
-            width: 90%;
-            max-width: 380px; /* Constrain width to resemble a phone */
-            height: 80vh; /* Make it taller like a phone screen */
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between; /* Distribute content top, middle, bottom */
-            align-items: center;
-            position: relative; /* For absolute positioning of elements */
-            color: white; /* Default text color for the black background */
-        }
+  <meta charset="UTF-8" />
 
-        h2 {
-            color: #f0f0f0; /* White heading */
-            margin-top: 2rem; /* Push title down slightly */
-            margin-bottom: 0; /* Remove default bottom margin */
-            font-size: 1.5em; /* Adjust font size to fit */
-        }
+  <title>STT + Automatic TTS Web App</title>
 
-        /* Voice Visualizer (the 5 dots) */
-        .voice-visualizer {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px; /* Space between ovals */
-            height: 100px; /* Height to contain the ovals */
-            width: 100%;
-            margin-top: auto; /* Push it towards the bottom center of its flexible space */
-            margin-bottom: auto; /* Center vertically in available space */
-        }
+  <style>
 
-        .pulse-dot {
-            width: 65px; /* Wider ovals */
-            height: 35px; /* Shorter height to create oval shape */
-            background-color: white;
-            border-radius: 35px; /* half of height for rounded caps on ends of oval */
-            transform: scaleY(1); /* Initial state */
-            opacity: 0.8; /* Slightly transparent when idle */
-            transition: transform 0.2s ease, opacity 0.2s ease; /* Smooth transitions */
-        }
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f4f4; }
 
-        /* Listening state - animation applied via JS by adding/removing 'listening' class */
-        .voice-visualizer.listening .pulse-dot {
-            animation: pulseScale 1.5s infinite ease-in-out alternate;
-        }
+    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
 
-        /* Animation delay for each dot */
-        .voice-visualizer.listening .pulse-dot:nth-child(2) { animation-delay: 0.1s; }
-        .voice-visualizer.listening .pulse-dot:nth-child(3) { animation-delay: 0.2s; }
-        .voice-visualizer.listening .pulse-dot:nth-child(4) { animation-delay: 0.3s; }
-        .voice-visualizer.listening .pulse-dot:nth-child(5) { animation-delay: 0.4s; }
+    button { padding: 1rem 2rem; font-size: 1rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
 
-        @keyframes pulseScale {
-            0%, 100% {
-                transform: scaleY(1); /* Default height */
-                opacity: 1;
-            }
-            50% {
-                transform: scaleY(0.6); /* Adjust for oval's pulsation, making it slightly flatter */
-                opacity: 0.6;
-            }
-        }
+    button:disabled { opacity: 0.6; cursor: default; }
 
-        /* Instruction Text */
-        #instructionText {
-            color: #aaaaaa; /* Lighter gray for instruction */
-            font-size: 0.9em;
-            margin-top: 0;
-            margin-bottom: 2rem; /* Space above control bar */
-        }
+    textarea { width: 100%; height: 120px; margin-top: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
 
+  </style>
 
-        /* Control Bar at the bottom */
-        .control-bar {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            width: 100%;
-            padding: 1rem 0;
-            margin-top: auto; /* Push to the very bottom */
-        }
-
-        .control-btn {
-            width: 55px; /* Fixed size for buttons */
-            height: 55px;
-            border-radius: 50%; /* Make them round */
-            border: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            font-size: 1.5rem;
-            color: white; /* Icon color */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-
-        .control-btn:active {
-            transform: scale(0.95); /* Slight press effect */
-        }
-
-        .control-btn.square {
-            background-color: #333333; /* Dark gray for stop button */
-        }
-
-        .control-btn.circle {
-            background-color: #ffffff; /* White background for main button */
-            color: black; /* Black icon on white background */
-            width: 65px; /* Larger main button */
-            height: 65px;
-            font-size: 2rem; /* Larger mic icon */
-        }
-
-        .control-btn.cross {
-            background-color: #ff3b30; /* Red for cancel button */
-        }
-
-        .control-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .icon {
-            display: block; /* Ensures icon is centered */
-            line-height: 1; /* Adjust line height for perfect centering */
-        }
-
-        .mic-icon {
-            font-size: 2.2rem; /* Adjust mic size specifically */
-        }
-
-        /* Hide the default transcript box, we'll use instruction text */
-        #transcript {
-          display: none;
-        }
-    </style>
 </head>
+
 <body>
-    <div class="container">
-        <h2>Press & Speak — auto TTS reply</h2>
 
-        <div class="voice-visualizer" id="voiceVisualizer">
-            <div class="pulse-dot"></div>
-            <div class="pulse-dot"></div>
-            <div class="pulse-dot"></div>
-            <div class="pulse-dot"></div>
-            <div class="pulse-dot"></div>
-        </div>
+  <div class="container">
 
-        <textarea id="transcript" style="display: none;"></textarea>
-        <p id="instructionText">Tap to talk</p> <div class="control-bar">
-            <button id="stopBtn" class="control-btn square">
-                <span class="icon">&#9632;</span> </button>
-            <button id="mainBtn" class="control-btn circle">
-                <span class="icon mic-icon">🎤</span>
-            </button>
-            <button id="cancelBtn" class="control-btn cross">
-                <span class="icon">&times;</span> </button>
-        </div>
-    </div>
+    <h2>Press & Speak — auto TTS reply</h2>
 
-    <script>
-        const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-        const mainBtn = document.getElementById("mainBtn"); // This is your main speech button now
-        const stopBtn = document.getElementById("stopBtn");
-        const cancelBtn = document.getElementById("cancelBtn");
-        const voiceVisualizer = document.getElementById("voiceVisualizer"); // The container for the dots
-        const instructionText = document.getElementById("instructionText"); // The "Tap to talk" text
-        const transcriptBox = document.getElementById("transcript"); // Still keeping it hidden for internal use
+    <textarea id="transcript" readonly placeholder="Your speech & AI reply appear here…"></textarea><br>
 
-        let voices = [];
-        let isListening = false;
-        let userText = "";
+    <button id="speakBtn">Hold to Speak</button>
 
-        // Speech Recognition setup
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = "en-US";
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+  </div>
 
-        // Speech Synthesis setup
-        function loadVoices() {
-            voices = speechSynthesis.getVoices();
-            console.log("Voices loaded:", voices);
-        }
-        speechSynthesis.onvoiceschanged = loadVoices;
-        loadVoices();
 
-        function speakText(text) {
-            speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.lang = "en-US";
-            if (voices.length) {
-                msg.voice = voices.find(v => v.lang.includes("en-US")) || voices.find(v => !v.name.includes('Google')) || voices.find(v => v.lang.startsWith('en')) || voices.find(v => v.name.toLowerCase().includes('english')) || voices.slice(-1)[0];
-            }
-            msg.onerror = e => console.error("TTS error:", e.error);
-            msg.onstart = () => {
-                console.log("TTS started");
-                voiceVisualizer.classList.remove("listening"); // Stop animation during TTS
-                instructionText.innerText = "AI is speaking...";
-                mainBtn.disabled = true; // Disable main button during TTS
-                stopBtn.disabled = true;
-                cancelBtn.disabled = true;
-            };
-            msg.onend = () => {
-                console.log("TTS ended");
-                instructionText.innerText = "Tap to talk"; // Reset instruction
-                mainBtn.disabled = false; // Enable main button after TTS
-                stopBtn.disabled = false;
-                cancelBtn.disabled = false;
-            };
-            speechSynthesis.speak(msg);
-        }
+  <script>
 
-        // Event Listeners for new buttons
-        mainBtn.addEventListener("mousedown", () => {
-            if (!isListening) {
-                isListening = true;
-                transcriptBox.value = ""; // Clear transcript (though hidden)
-                instructionText.innerText = "Listening...";
-                voiceVisualizer.classList.add("listening"); // Start animation
-                recognition.start();
-                // Disable other buttons while listening
-                stopBtn.disabled = true;
-                cancelBtn.disabled = true;
-            }
+    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
+
+    const speakBtn = document.getElementById("speakBtn");
+
+    const transcriptBox = document.getElementById("transcript");
+
+    let voices = [];
+
+
+    // Load voices when available
+
+    function loadVoices() {
+
+      voices = speechSynthesis.getVoices();
+
+      console.log("Voices loaded:", voices);
+
+    }
+
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    loadVoices();
+
+
+    function speakText(text) {
+
+      speechSynthesis.cancel();
+
+      const msg = new SpeechSynthesisUtterance(text);
+
+      msg.lang = "en-US";
+
+      if (voices.length) {
+
+        msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
+
+      }
+
+      msg.onerror = e => console.error("TTS error:", e.error);
+
+      msg.onstart = () => console.log("TTS started");
+
+      msg.onend = () => console.log("TTS ended");
+
+      speechSynthesis.speak(msg);
+
+    }
+
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+    recognition.lang = "en-US";
+
+    recognition.interimResults = false;
+
+    recognition.maxAlternatives = 1;
+
+
+    let isListening = false;
+
+    let userText = "";
+
+
+    // Start recording
+
+    speakBtn.addEventListener("mousedown", () => {
+
+      if (!isListening) {
+
+        isListening = true;
+
+        transcriptBox.value = "";
+
+        recognition.start();
+
+        speakBtn.innerText = "Listening…";
+
+      }
+
+    });
+
+
+    // Stop recording and send
+
+    speakBtn.addEventListener("mouseup", () => {
+
+      if (isListening) {
+
+        recognition.stop();
+
+        isListening = false;
+
+        speakBtn.innerText = "Hold to Speak";
+
+      }
+
+    });
+
+
+    recognition.onresult = e => {
+
+      userText = e.results[0][0].transcript;
+
+      transcriptBox.value = "You: " + userText;
+
+      sendToWebhook(userText);
+
+    };
+
+
+    recognition.onerror = e => {
+
+      console.error("STT error:", e.error);
+
+      transcriptBox.value = "Error: " + e.error;
+
+      isListening = false;
+
+      speakBtn.innerText = "Hold to Speak";
+
+    };
+
+
+    async function sendToWebhook(text) {
+
+      transcriptBox.value += "\n(Waiting for AI reply...)";
+
+      try {
+
+        const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
+
+          method: "GET", mode: "cors"
+
         });
 
-        // We'll use mouseup for main button to trigger stop
-        mainBtn.addEventListener("mouseup", () => {
-            if (isListening) {
-                recognition.stop();
-                // isListening is set to false in onend/onerror
-                voiceVisualizer.classList.remove("listening"); // Stop animation immediately
-                instructionText.innerText = "Processing..."; // Indicate processing
-            }
-        });
+        if (!res.ok) throw new Error(res.statusText);
 
-        // For the dedicated stop button (square)
-        stopBtn.addEventListener("click", () => {
-            if (isListening) {
-                recognition.stop(); // Stop recognition
-            }
-            speechSynthesis.cancel(); // Stop any ongoing TTS
-            isListening = false;
-            voiceVisualizer.classList.remove("listening");
-            instructionText.innerText = "Tap to talk";
-            // Re-enable all buttons
-            mainBtn.disabled = false;
-            stopBtn.disabled = false;
-            cancelBtn.disabled = false;
-        });
+        const aiReply = await res.text();
 
-        // For the dedicated cancel button (cross)
-        cancelBtn.addEventListener("click", () => {
-            if (isListening) {
-                recognition.abort(); // Abort recognition (discards results)
-            }
-            speechSynthesis.cancel(); // Stop any ongoing TTS
-            isListening = false;
-            voiceVisualizer.classList.remove("listening");
-            instructionText.innerText = "Tap to talk";
-            // Re-enable all buttons
-            mainBtn.disabled = false;
-            stopBtn.disabled = false;
-            cancelBtn.disabled = false;
-        });
+        transcriptBox.value = "You: " + userText + "\nAI: " + aiReply;
 
+        speakText(aiReply);  // 🔊 Play TTS automatically
 
-        // Speech Recognition Event Handlers
-        recognition.onresult = e => {
-            userText = e.results?.[0]?.[0]?.transcript;
-            if (userText) {
-                transcriptBox.value = "You: " + userText; // Store in hidden box
-                instructionText.innerText = "Processing..."; // Update UI
-                sendToWebhook(userText);
-            } else {
-                instructionText.innerText = "No speech detected. Tap to talk.";
-                isListening = false;
-                voiceVisualizer.classList.remove("listening");
-                // Re-enable all buttons
-                mainBtn.disabled = false;
-                stopBtn.disabled = false;
-                cancelBtn.disabled = false;
-            }
-        };
+      } catch (err) {
 
-        recognition.onend = () => {
-            // This fires after recognition stops (either by user or timeout)
-            isListening = false;
-            voiceVisualizer.classList.remove("listening"); // Ensure animation stops
-            // Instruction text updated by onresult or onerror
-            // Buttons re-enabled by speakText onend or onerror/onresult else
-        };
+        console.error("Fetch error:", err);
 
-        recognition.onerror = e => {
-            console.error("STT error:", e.error);
-            transcriptBox.value = "Error: " + e.error;
-            instructionText.innerText = "Error: " + e.error + ". Tap to talk.";
-            isListening = false;
-            voiceVisualizer.classList.remove("listening");
-            // Re-enable all buttons
-            mainBtn.disabled = false;
-            stopBtn.disabled = false;
-            cancelBtn.disabled = false;
-        };
+        transcriptBox.value += "\nError: " + err.message;
 
-        // Webhook Function
-        async function sendToWebhook(text) {
-            try {
-                const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
-                    method: "GET", mode: "cors"
-                });
-                if (!res.ok) throw new Error(res.statusText);
-                const aiReply = await res.text();
-                transcriptBox.value += "\nAI: " + aiReply; // Store in hidden box
-                speakText(aiReply);  // 🔊 Play TTS automatically
-            } catch (err) {
-                console.error("Fetch error:", err);
-                transcriptBox.value += "\nError: " + err.message;
-                instructionText.innerText = "Error fetching AI reply: " + err.message;
-                // Re-enable all buttons on fetch error
-                mainBtn.disabled = false;
-                stopBtn.disabled = false;
-                cancelBtn.disabled = false;
-            }
-        }
+      }
 
-        // Initial button states - ensure they are enabled on load
-        stopBtn.disabled = false;
-        cancelBtn.disabled = false;
-    </script>
+    }
+
+  </script>
+
 </body>
+
 </html>
