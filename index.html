@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Conversational AI Assistant</title>
+  <title>Natural AI Conversation</title>
   <style>
     * {
       margin: 0;
@@ -102,13 +102,13 @@
       height: 80px;
       border-radius: 50%;
       border: none;
-      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      background: linear-gradient(135deg, #51cf66, #40c057);
       color: white;
       font-size: 1.8rem;
       cursor: pointer;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 
-        0 10px 30px rgba(255, 107, 107, 0.3),
+        0 10px 30px rgba(81, 207, 102, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
       position: relative;
       overflow: hidden;
@@ -117,7 +117,7 @@
     .mic-button:hover {
       transform: scale(1.05);
       box-shadow: 
-        0 15px 35px rgba(255, 107, 107, 0.4),
+        0 15px 35px rgba(81, 207, 102, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
@@ -141,6 +141,21 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
+    .mic-button.inactive {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      box-shadow: 
+        0 10px 30px rgba(255, 107, 107, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .mic-button.processing {
+      background: linear-gradient(135deg, #9775fa, #7c3aed);
+      animation: processing-spin 1s linear infinite;
+      box-shadow: 
+        0 0 30px rgba(151, 117, 250, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
     @keyframes listening-pulse {
       0%, 100% { box-shadow: 0 0 30px rgba(81, 207, 102, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
       50% { box-shadow: 0 0 50px rgba(81, 207, 102, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
@@ -152,6 +167,11 @@
       75% { transform: scale(0.98); }
     }
     
+    @keyframes processing-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
     .button-label {
       color: white;
       font-size: 0.85rem;
@@ -159,6 +179,40 @@
       margin-top: 1rem;
       opacity: 0.9;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .conversation-controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .conversation-controls.show {
+      opacity: 1;
+    }
+    
+    .control-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      backdrop-filter: blur(10px);
+    }
+    
+    .control-btn:hover {
+      transform: scale(1.1);
+      background: rgba(255, 255, 255, 0.3);
     }
     
     @media (max-width: 480px) {
@@ -196,16 +250,21 @@
 
 <body>
   <div class="container">
-    <h1>✨ AI Conversation</h1>
+    <h1>📞 Natural AI Call</h1>
     
     <div class="chat-container">
       <div class="chat-messages" id="chatMessages">
-        <div class="status-message">Press and hold the button to start talking...</div>
+        <div class="status-message">Click the button to start your conversation...</div>
       </div>
     </div>
     
-    <button class="mic-button" id="micBtn">🎤</button>
-    <div class="button-label" id="buttonLabel">Hold to Speak</div>
+    <button class="mic-button inactive" id="micBtn">📞</button>
+    <div class="button-label" id="buttonLabel">Start Conversation</div>
+    
+    <div class="conversation-controls" id="conversationControls">
+      <button class="control-btn" id="muteBtn" title="Mute/Unmute">🔇</button>
+      <button class="control-btn" id="endBtn" title="End Conversation">⏹️</button>
+    </div>
   </div>
 
   <script>
@@ -213,11 +272,18 @@
     const micBtn = document.getElementById("micBtn");
     const chatMessages = document.getElementById("chatMessages");
     const buttonLabel = document.getElementById("buttonLabel");
+    const conversationControls = document.getElementById("conversationControls");
+    const muteBtn = document.getElementById("muteBtn");
+    const endBtn = document.getElementById("endBtn");
     
     let voices = [];
+    let isConversationActive = false;
     let isListening = false;
     let isSpeaking = false;
+    let isMuted = false;
     let currentUtterance = null;
+    let recognition = null;
+    let silenceTimeout = null;
 
     // Load voices
     function loadVoices() {
@@ -225,6 +291,15 @@
     }
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
+
+    // Initialize speech recognition
+    function initializeRecognition() {
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;  // Enable interim results for better flow
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false;  // We'll restart manually for better control
+    }
 
     // Add message to chat
     function addMessage(text, type) {
@@ -245,9 +320,45 @@
       }
     }
 
-    // Speak text with interruption capability
+    // Start listening for speech
+    function startListening() {
+      if (!isConversationActive || isListening || isSpeaking) return;
+      
+      try {
+        isListening = true;
+        recognition.start();
+        micBtn.classList.add('listening');
+        micBtn.classList.remove('inactive', 'processing');
+        buttonLabel.textContent = "Listening...";
+        micBtn.textContent = "🎤";
+        
+        // Clear initial status message
+        if (chatMessages.children.length === 1 && chatMessages.children[0].classList.contains('status-message')) {
+          chatMessages.innerHTML = '';
+        }
+      } catch (err) {
+        console.error("Failed to start recognition:", err);
+        isListening = false;
+      }
+    }
+
+    // Stop listening
+    function stopListening() {
+      if (isListening) {
+        try {
+          recognition.stop();
+        } catch (err) {
+          console.error("Error stopping recognition:", err);
+        }
+        isListening = false;
+        micBtn.classList.remove('listening');
+      }
+    }
+
+    // Speak text with automatic conversation flow
     function speakText(text) {
-      stopSpeaking(); // Stop any current speech
+      stopSpeaking();
+      if (isMuted) return;
       
       currentUtterance = new SpeechSynthesisUtterance(text);
       currentUtterance.lang = "en-US";
@@ -259,94 +370,72 @@
       currentUtterance.onstart = () => {
         isSpeaking = true;
         micBtn.classList.add('speaking');
+        micBtn.classList.remove('listening', 'processing', 'inactive');
         buttonLabel.textContent = "AI Speaking...";
+        micBtn.textContent = "🗣️";
       };
       
       currentUtterance.onend = () => {
         isSpeaking = false;
         micBtn.classList.remove('speaking');
-        buttonLabel.textContent = "Hold to Speak";
         currentUtterance = null;
+        
+        // Automatically start listening again after AI finishes speaking
+        if (isConversationActive) {
+          setTimeout(() => {
+            startListening();
+          }, 500); // Brief pause before listening again
+        }
       };
       
       currentUtterance.onerror = () => {
         isSpeaking = false;
         micBtn.classList.remove('speaking');
-        buttonLabel.textContent = "Hold to Speak";
         currentUtterance = null;
+        if (isConversationActive) {
+          setTimeout(() => startListening(), 500);
+        }
       };
       
       speechSynthesis.speak(currentUtterance);
     }
 
-    // Initialize speech recognition
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    let userText = "";
-
-    // Start listening - interrupt any speech
-    micBtn.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      if (!isListening) {
-        stopSpeaking(); // Immediately stop AI speech when user wants to speak
-        
-        isListening = true;
-        recognition.start();
-        micBtn.classList.add("listening");
-        buttonLabel.textContent = "Listening...";
-        
-        // Clear status messages if it's the first interaction
-        if (chatMessages.children.length === 1 && chatMessages.children[0].classList.contains('status-message')) {
-          chatMessages.innerHTML = '';
-        }
-      }
-    });
-
-    // Stop listening
-    micBtn.addEventListener("mouseup", () => {
-      if (isListening) {
-        recognition.stop();
-        isListening = false;
-        micBtn.classList.remove("listening");
-        buttonLabel.textContent = "Processing...";
-      }
-    });
-
-    // Handle mouse leave to stop listening
-    micBtn.addEventListener("mouseleave", () => {
-      if (isListening) {
-        recognition.stop();
-        isListening = false;
-        micBtn.classList.remove("listening");
-        buttonLabel.textContent = "Hold to Speak";
-      }
-    });
-
-    // Speech recognition results
-    recognition.onresult = (e) => {
-      userText = e.results[0][0].transcript;
-      addMessage(`You: ${userText}`, 'user');
-      sendToWebhook(userText);
-    };
-
-    // Speech recognition errors
-    recognition.onerror = (e) => {
-      console.error("Speech recognition error:", e.error);
-      isListening = false;
-      micBtn.classList.remove("listening");
-      buttonLabel.textContent = "Hold to Speak";
+    // Start conversation
+    function startConversation() {
+      if (!recognition) initializeRecognition();
       
-      if (e.error !== 'aborted') {
-        addMessage(`Error: ${e.error}`, 'status');
-      }
-    };
+      isConversationActive = true;
+      conversationControls.classList.add('show');
+      micBtn.classList.remove('inactive');
+      buttonLabel.textContent = "Starting...";
+      
+      // Start listening immediately
+      setTimeout(() => {
+        startListening();
+      }, 300);
+    }
+
+    // End conversation
+    function endConversation() {
+      isConversationActive = false;
+      stopListening();
+      stopSpeaking();
+      
+      conversationControls.classList.remove('show');
+      micBtn.classList.remove('listening', 'speaking', 'processing');
+      micBtn.classList.add('inactive');
+      micBtn.textContent = "📞";
+      buttonLabel.textContent = "Start Conversation";
+      
+      addMessage("Conversation ended", 'status');
+    }
 
     // Send to webhook
     async function sendToWebhook(text) {
+      micBtn.classList.add('processing');
+      micBtn.classList.remove('listening');
       buttonLabel.textContent = "Thinking...";
+      micBtn.textContent = "🤔";
       
       try {
         const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
@@ -358,27 +447,102 @@
         
         const aiReply = await res.text();
         addMessage(`AI: ${aiReply}`, 'ai');
+        micBtn.classList.remove('processing');
         speakText(aiReply);
         
       } catch (err) {
         console.error("Fetch error:", err);
         addMessage(`Error: ${err.message}`, 'status');
-        buttonLabel.textContent = "Hold to Speak";
+        micBtn.classList.remove('processing');
+        if (isConversationActive) {
+          setTimeout(() => startListening(), 1000);
+        }
       }
+    }
+
+    // Main button click handler
+    micBtn.addEventListener("click", () => {
+      if (!isConversationActive) {
+        startConversation();
+      }
+    });
+
+    // Mute button
+    muteBtn.addEventListener("click", () => {
+      isMuted = !isMuted;
+      muteBtn.textContent = isMuted ? "🔇" : "🔊";
+      muteBtn.title = isMuted ? "Unmute" : "Mute";
+      if (isMuted) stopSpeaking();
+    });
+
+    // End button
+    endBtn.addEventListener("click", endConversation);
+
+    // Initialize recognition when page loads
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      initializeRecognition();
+      
+      // Set up recognition event handlers
+      recognition.onresult = (e) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        if (finalTranscript.trim()) {
+          addMessage(`You: ${finalTranscript.trim()}`, 'user');
+          sendToWebhook(finalTranscript.trim());
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        
+        // If conversation is still active but we're not speaking, restart listening
+        if (isConversationActive && !isSpeaking) {
+          setTimeout(() => {
+            startListening();
+          }, 100);
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.error("Speech recognition error:", e.error);
+        isListening = false;
+        micBtn.classList.remove('listening');
+        
+        if (e.error !== 'aborted' && e.error !== 'no-speech') {
+          addMessage(`Recognition error: ${e.error}`, 'status');
+        }
+        
+        // Restart listening if conversation is still active
+        if (isConversationActive && !isSpeaking && e.error !== 'aborted') {
+          setTimeout(() => {
+            startListening();
+          }, 1000);
+        }
+      };
+    } else {
+      buttonLabel.textContent = "Speech recognition not supported";
+      micBtn.disabled = true;
     }
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && !isListening && !e.repeat) {
+      if (e.code === 'Space' && !isConversationActive && !e.repeat) {
         e.preventDefault();
-        micBtn.dispatchEvent(new MouseEvent('mousedown'));
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.code === 'Space' && isListening) {
+        startConversation();
+      } else if (e.code === 'Escape' && isConversationActive) {
         e.preventDefault();
-        micBtn.dispatchEvent(new MouseEvent('mouseup'));
+        endConversation();
       }
     });
   </script>
