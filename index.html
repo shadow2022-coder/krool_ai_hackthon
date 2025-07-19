@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>AI Voice Call Interface</title>
+  <title>Conversational AI Assistant</title>
   <style>
     * {
       margin: 0;
@@ -20,7 +20,6 @@
       padding: 20px;
       animation: gradientShift 8s ease infinite;
       background-size: 400% 400%;
-      color: white;
     }
     
     @keyframes gradientShift {
@@ -29,343 +28,196 @@
       100% { background-position: 0% 50%; }
     }
     
-    .phone-container {
+    .container { 
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      width: 100%;
-      max-width: 380px;
-      height: 600px;
+      padding: 2.5rem;
       border-radius: 30px;
-      padding: 2rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-      position: relative;
+      text-align: center;
+      width: 100%;
+      max-width: 420px;
       box-shadow: 
-        0 25px 50px rgba(0, 0, 0, 0.2),
+        0 25px 50px rgba(0, 0, 0, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
-    .header {
-      display: flex;
-      align-items: center;
+    h1 { 
+      color: white;
+      font-size: 1.8rem;
+      font-weight: 300;
       margin-bottom: 2rem;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      letter-spacing: -0.5px;
     }
     
-    .status-badge {
-      background: rgba(102, 126, 234, 0.3);
-      padding: 0.5rem 1rem;
+    .chat-container {
+      background: rgba(255, 255, 255, 0.95);
       border-radius: 20px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      backdrop-filter: blur(10px);
-    }
-    
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      background: #51cf66;
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.1); }
-    }
-    
-    .timer {
-      text-align: center;
-      font-size: 2rem;
-      font-weight: 300;
-      margin-bottom: 3rem;
-      color: white;
-      letter-spacing: 1px;
-    }
-    
-    .avatar-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      position: relative;
       margin-bottom: 2rem;
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
     }
     
-    .avatar {
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 4rem;
-      position: relative;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-      z-index: 2;
+    .chat-messages {
+      padding: 1rem;
+      text-align: left;
+      min-height: 120px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #2d3748;
     }
     
-    .sound-wave {
-      position: absolute;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      animation: wave-expand 2s infinite;
+    .message {
+      margin-bottom: 1rem;
+      animation: fadeIn 0.3s ease;
     }
     
-    .sound-wave:nth-child(1) {
-      width: 200px;
-      height: 200px;
-      animation-delay: 0s;
+    .user-message {
+      color: #667eea;
+      font-weight: 500;
     }
     
-    .sound-wave:nth-child(2) {
-      width: 240px;
-      height: 240px;
-      animation-delay: 0.3s;
+    .ai-message {
+      color: #4a5568;
+      padding-left: 1rem;
+      border-left: 3px solid #667eea;
+      margin-left: 0.5rem;
     }
     
-    .sound-wave:nth-child(3) {
-      width: 280px;
-      height: 280px;
-      animation-delay: 0.6s;
+    .status-message {
+      color: #718096;
+      font-style: italic;
+      opacity: 0.8;
     }
     
-    @keyframes wave-expand {
-      0% {
-        transform: scale(0.8);
-        opacity: 0.8;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 0;
-      }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
-    .speaker-info {
-      text-align: center;
-      margin-bottom: 3rem;
-    }
-    
-    .speaker-name {
-      font-size: 2rem;
-      font-weight: 300;
-      margin-bottom: 0.5rem;
-      color: white;
-    }
-    
-    .speaker-status {
-      font-size: 1rem;
-      color: rgba(255, 255, 255, 0.8);
-      font-weight: 400;
-    }
-    
-    .controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 1rem;
-    }
-    
-    .control-btn {
-      width: 60px;
-      height: 60px;
+    .mic-button {
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       border: none;
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      color: white;
+      font-size: 1.8rem;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 
+        0 10px 30px rgba(255, 107, 107, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      position: relative;
+      overflow: hidden;
     }
     
-    .mic-btn {
-      background: linear-gradient(135deg, #51cf66, #40c057);
-    }
-    
-    .mic-btn:hover {
+    .mic-button:hover {
       transform: scale(1.05);
-      box-shadow: 0 15px 30px rgba(81, 207, 102, 0.4);
+      box-shadow: 
+        0 15px 35px rgba(255, 107, 107, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
-    .mic-btn.listening {
+    .mic-button:active {
+      transform: scale(0.95);
+    }
+    
+    .mic-button.listening {
+      background: linear-gradient(135deg, #51cf66, #40c057);
       animation: listening-pulse 1.5s infinite;
+      box-shadow: 
+        0 0 30px rgba(81, 207, 102, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .mic-button.speaking {
+      background: linear-gradient(135deg, #ffd43b, #fab005);
+      animation: speaking-wave 0.8s infinite;
+      box-shadow: 
+        0 0 30px rgba(255, 212, 59, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
     @keyframes listening-pulse {
-      0%, 100% { 
-        background: linear-gradient(135deg, #51cf66, #40c057);
-        box-shadow: 0 0 30px rgba(81, 207, 102, 0.5);
-      }
-      50% { 
-        background: linear-gradient(135deg, #69db7c, #51cf66);
-        box-shadow: 0 0 50px rgba(81, 207, 102, 0.8);
-      }
+      0%, 100% { box-shadow: 0 0 30px rgba(81, 207, 102, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+      50% { box-shadow: 0 0 50px rgba(81, 207, 102, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
     }
     
-    .end-btn {
-      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    @keyframes speaking-wave {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(1.02); }
+      75% { transform: scale(0.98); }
     }
     
-    .end-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 15px 30px rgba(255, 107, 107, 0.4);
-    }
-    
-    .menu-btn {
-      background: rgba(255, 255, 255, 0.2);
+    .button-label {
       color: white;
-    }
-    
-    .menu-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-      transform: scale(1.05);
-    }
-    
-    .chat-history {
-      position: absolute;
-      bottom: 120px;
-      left: 20px;
-      right: 20px;
-      max-height: 120px;
-      overflow-y: auto;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 15px;
-      padding: 1rem;
-      backdrop-filter: blur(10px);
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.3s ease;
-    }
-    
-    .chat-history.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    .chat-message {
       font-size: 0.85rem;
-      line-height: 1.4;
-      margin-bottom: 0.5rem;
-      color: rgba(255, 255, 255, 0.9);
-    }
-    
-    .user-msg { color: #69db7c; }
-    .ai-msg { color: #ffd43b; }
-    
-    .speaking .sound-wave {
-      display: block;
-    }
-    
-    .idle .sound-wave {
-      display: none;
+      font-weight: 500;
+      margin-top: 1rem;
+      opacity: 0.9;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
     
     @media (max-width: 480px) {
-      .phone-container {
-        height: 580px;
-        padding: 1.5rem 1rem;
+      .container {
+        padding: 2rem 1.5rem;
+        margin: 10px;
       }
       
-      .avatar {
-        width: 150px;
-        height: 150px;
-        font-size: 3rem;
+      h1 {
+        font-size: 1.6rem;
       }
       
-      .sound-wave:nth-child(1) { width: 170px; height: 170px; }
-      .sound-wave:nth-child(2) { width: 200px; height: 200px; }
-      .sound-wave:nth-child(3) { width: 230px; height: 230px; }
+      .mic-button {
+        width: 70px;
+        height: 70px;
+        font-size: 1.6rem;
+      }
     }
     
     ::-webkit-scrollbar {
-      width: 3px;
+      width: 4px;
     }
     
     ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 10px;
     }
     
     ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 3px;
+      background: rgba(102, 126, 234, 0.3);
+      border-radius: 10px;
     }
   </style>
 </head>
 
 <body>
-  <div class="phone-container" id="phoneContainer">
-    <div class="header">
-      <div class="status-badge" id="statusBadge">
-        <div class="status-dot"></div>
-        <span id="statusText">Active</span>
+  <div class="container">
+    <h1>✨ AI Conversation</h1>
+    
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMessages">
+        <div class="status-message">Press and hold the button to start talking...</div>
       </div>
     </div>
     
-    <div class="timer" id="timer">00:00:00</div>
-    
-    <div class="avatar-container">
-      <div class="sound-wave"></div>
-      <div class="sound-wave"></div>
-      <div class="sound-wave"></div>
-      <div class="avatar" id="avatar">🤖</div>
-    </div>
-    
-    <div class="speaker-info">
-      <div class="speaker-name">AI Assistant</div>
-      <div class="speaker-status" id="speakerStatus">Ready to chat</div>
-    </div>
-    
-    <div class="chat-history" id="chatHistory"></div>
-    
-    <div class="controls">
-      <button class="control-btn mic-btn" id="micBtn">🎤</button>
-      <button class="control-btn menu-btn" id="menuBtn">⋯</button>
-      <button class="control-btn end-btn" id="endBtn">📞</button>
-    </div>
+    <button class="mic-button" id="micBtn">🎤</button>
+    <div class="button-label" id="buttonLabel">Hold to Speak</div>
   </div>
 
   <script>
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-    
-    // Elements
     const micBtn = document.getElementById("micBtn");
-    const menuBtn = document.getElementById("menuBtn");
-    const endBtn = document.getElementById("endBtn");
-    const speakerStatus = document.getElementById("speakerStatus");
-    const phoneContainer = document.getElementById("phoneContainer");
-    const chatHistory = document.getElementById("chatHistory");
-    const timer = document.getElementById("timer");
-    const statusText = document.getElementById("statusText");
-    const avatar = document.getElementById("avatar");
+    const chatMessages = document.getElementById("chatMessages");
+    const buttonLabel = document.getElementById("buttonLabel");
     
     let voices = [];
     let isListening = false;
     let isSpeaking = false;
     let currentUtterance = null;
-    let startTime = Date.now();
-    let timerInterval = null;
-    let chatMessages = [];
-
-    // Initialize timer
-    function startTimer() {
-      startTime = Date.now();
-      timerInterval = setInterval(updateTimer, 1000);
-      updateTimer();
-    }
-
-    function updateTimer() {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
-      const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
-      const seconds = (elapsed % 60).toString().padStart(2, '0');
-      timer.textContent = `${hours}:${minutes}:${seconds}`;
-    }
 
     // Load voices
     function loadVoices() {
@@ -374,15 +226,13 @@
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
 
-    // Add chat message
-    function addChatMessage(text, type) {
-      chatMessages.push({ text, type });
-      if (chatMessages.length > 10) chatMessages.shift();
-      
-      chatHistory.innerHTML = chatMessages.map(msg => 
-        `<div class="chat-message ${msg.type}-msg">${msg.text}</div>`
-      ).join('');
-      chatHistory.scrollTop = chatHistory.scrollHeight;
+    // Add message to chat
+    function addMessage(text, type) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}-message`;
+      messageDiv.textContent = text;
+      chatMessages.appendChild(messageDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     // Stop current speech
@@ -390,14 +240,14 @@
       if (isSpeaking && currentUtterance) {
         speechSynthesis.cancel();
         isSpeaking = false;
-        phoneContainer.classList.remove('speaking');
-        phoneContainer.classList.add('idle');
+        micBtn.classList.remove('speaking');
+        currentUtterance = null;
       }
     }
 
-    // Speak text
+    // Speak text with interruption capability
     function speakText(text) {
-      stopSpeaking();
+      stopSpeaking(); // Stop any current speech
       
       currentUtterance = new SpeechSynthesisUtterance(text);
       currentUtterance.lang = "en-US";
@@ -408,89 +258,96 @@
       
       currentUtterance.onstart = () => {
         isSpeaking = true;
-        phoneContainer.classList.add('speaking');
-        phoneContainer.classList.remove('idle');
-        speakerStatus.textContent = "Speaking...";
-        statusText.textContent = "AI Speaking";
+        micBtn.classList.add('speaking');
+        buttonLabel.textContent = "AI Speaking...";
       };
       
       currentUtterance.onend = () => {
         isSpeaking = false;
-        phoneContainer.classList.remove('speaking');
-        phoneContainer.classList.add('idle');
-        speakerStatus.textContent = "Ready to chat";
-        statusText.textContent = "Active";
+        micBtn.classList.remove('speaking');
+        buttonLabel.textContent = "Hold to Speak";
+        currentUtterance = null;
+      };
+      
+      currentUtterance.onerror = () => {
+        isSpeaking = false;
+        micBtn.classList.remove('speaking');
+        buttonLabel.textContent = "Hold to Speak";
+        currentUtterance = null;
       };
       
       speechSynthesis.speak(currentUtterance);
     }
 
-    // Speech recognition
+    // Initialize speech recognition
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    // Mic button events
+    let userText = "";
+
+    // Start listening - interrupt any speech
     micBtn.addEventListener("mousedown", (e) => {
       e.preventDefault();
       if (!isListening) {
-        stopSpeaking();
+        stopSpeaking(); // Immediately stop AI speech when user wants to speak
         
         isListening = true;
         recognition.start();
         micBtn.classList.add("listening");
-        speakerStatus.textContent = "Listening...";
-        statusText.textContent = "Listening";
-        phoneContainer.classList.add('idle');
+        buttonLabel.textContent = "Listening...";
+        
+        // Clear status messages if it's the first interaction
+        if (chatMessages.children.length === 1 && chatMessages.children[0].classList.contains('status-message')) {
+          chatMessages.innerHTML = '';
+        }
       }
     });
 
+    // Stop listening
     micBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
         isListening = false;
         micBtn.classList.remove("listening");
-        speakerStatus.textContent = "Processing...";
-        statusText.textContent = "Processing";
+        buttonLabel.textContent = "Processing...";
       }
     });
 
-    // Menu button - toggle chat history
-    menuBtn.addEventListener("click", () => {
-      chatHistory.classList.toggle("show");
-    });
-
-    // End button - clear conversation
-    endBtn.addEventListener("click", () => {
-      stopSpeaking();
-      chatMessages = [];
-      chatHistory.innerHTML = '';
-      chatHistory.classList.remove("show");
-      speakerStatus.textContent = "Ready to chat";
-      statusText.textContent = "Active";
-      // Reset timer
-      clearInterval(timerInterval);
-      startTimer();
+    // Handle mouse leave to stop listening
+    micBtn.addEventListener("mouseleave", () => {
+      if (isListening) {
+        recognition.stop();
+        isListening = false;
+        micBtn.classList.remove("listening");
+        buttonLabel.textContent = "Hold to Speak";
+      }
     });
 
     // Speech recognition results
     recognition.onresult = (e) => {
-      const userText = e.results[0][0].transcript;
-      addChatMessage(`You: ${userText}`, 'user');
+      userText = e.results[0][0].transcript;
+      addMessage(`You: ${userText}`, 'user');
       sendToWebhook(userText);
     };
 
+    // Speech recognition errors
     recognition.onerror = (e) => {
       console.error("Speech recognition error:", e.error);
       isListening = false;
       micBtn.classList.remove("listening");
-      speakerStatus.textContent = "Ready to chat";
-      statusText.textContent = "Active";
+      buttonLabel.textContent = "Hold to Speak";
+      
+      if (e.error !== 'aborted') {
+        addMessage(`Error: ${e.error}`, 'status');
+      }
     };
 
     // Send to webhook
     async function sendToWebhook(text) {
+      buttonLabel.textContent = "Thinking...";
+      
       try {
         const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
           method: "GET", 
@@ -500,22 +357,17 @@
         if (!res.ok) throw new Error(res.statusText);
         
         const aiReply = await res.text();
-        addChatMessage(`AI: ${aiReply}`, 'ai');
+        addMessage(`AI: ${aiReply}`, 'ai');
         speakText(aiReply);
         
       } catch (err) {
         console.error("Fetch error:", err);
-        addChatMessage(`Error: ${err.message}`, 'ai');
-        speakerStatus.textContent = "Ready to chat";
-        statusText.textContent = "Active";
+        addMessage(`Error: ${err.message}`, 'status');
+        buttonLabel.textContent = "Hold to Speak";
       }
     }
 
-    // Initialize
-    startTimer();
-    phoneContainer.classList.add('idle');
-
-    // Keyboard support
+    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !isListening && !e.repeat) {
         e.preventDefault();
