@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Simple STT + TTS Web App</title>
+  <title>Simple STT Web App</title>
+  <link rel="icon" href="data:;base64,=" />
   <style>
     body {
       font-family: sans-serif;
@@ -50,30 +51,34 @@
 </head>
 <body>
   <div class="container">
-    <h2>Voice Input / Output</h2>
-    <textarea id="transcript" readonly placeholder="STT transcript…"></textarea>
-    <textarea id="ttsLog" readonly placeholder="TTS log…" style="margin-top:.5rem;"></textarea>
+    <h2>Voice Input</h2>
+    <textarea id="transcript" readonly placeholder="Transcript will appear here..."></textarea><br>
     <button id="speakBtn">Hold to Speak</button>
   </div>
 
   <script>
-    // —— STT setup ——
-    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook-test/parse-voice";
     const speakBtn = document.getElementById("speakBtn");
     const transcriptBox = document.getElementById("transcript");
-    let isListening = false;
+    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook-test/parse-voice";
+
+    // set up the SpeechRecognition API
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'en-US';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
+    let isListening = false;
+
+    // start listening on mousedown
     speakBtn.addEventListener("mousedown", () => {
       if (!isListening) {
         isListening = true;
         recognition.start();
-        speakBtn.innerText = "Listening…";
+        speakBtn.innerText = "Listening...";
       }
     });
+
+    // stop on mouseup
     speakBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
@@ -81,44 +86,28 @@
         speakBtn.innerText = "Hold to Speak";
       }
     });
-    recognition.onresult = e => {
+
+    // handle successful speech-to-text
+    recognition.onresult = (e) => {
       const text = e.results[0][0].transcript;
       transcriptBox.value = text;
-      fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, { method: "GET", mode: "cors" })
-        .then(r => console.log("STT→Webhook status", r.status))
-        .catch(console.error);
+      sendToWebhook(text);
     };
-    recognition.onerror = e => {
+
+    recognition.onerror = (e) => {
       transcriptBox.value = "Error: " + e.error;
     };
 
-    // —— TTS setup ——
-    const TTS_WEBHOOK_URL = "https://YOUR_N8N_WEBHOOK_URL"; 
-    const ttsLog = document.getElementById("ttsLog");
-    let lastSpoken = "";
-
-    function speakText(text) {
-      if (!text) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US';
-      speechSynthesis.speak(u);
-      ttsLog.value = `🔊 ${text}`;
+    // send via GET with ?text=…
+    function sendToWebhook(text) {
+      const url = `${WEBHOOK_URL}?text=${encodeURIComponent(text)}`;
+      fetch(url, {
+        method: "GET",
+        mode: "cors",
+      })
+      .then(res => console.log("Webhook GET status:", res.status))
+      .catch(err => console.error("Error sending to webhook:", err));
     }
-
-    // poll n8n every 2 seconds for new text
-    setInterval(async () => {
-      try {
-        const res = await fetch(TTS_WEBHOOK_URL, { method: "GET", mode: "cors" });
-        if (!res.ok) return;
-        const payload = await res.json();
-        if (payload.text && payload.text !== lastSpoken) {
-          lastSpoken = payload.text;
-          speakText(payload.text);
-        }
-      } catch (err) {
-        console.warn("TTS poll error:", err);
-      }
-    }, 2000);
   </script>
 </body>
 </html>
