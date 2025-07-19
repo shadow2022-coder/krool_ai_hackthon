@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Simple STT Web App</title>
+  <title>STT + TTS Web App</title>
   <link rel="icon" href="data:;base64,=" />
   <style>
     body {
@@ -34,12 +34,16 @@
       cursor: pointer;
       margin-top: 1rem;
     }
-    button:active {
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    button:active:not(:disabled) {
       background-color: #1d4ed8;
     }
     textarea {
       width: 100%;
-      height: 100px;
+      height: 120px;
       margin-top: 1rem;
       padding: 0.5rem;
       border-radius: 6px;
@@ -48,37 +52,41 @@
       font-size: 1rem;
     }
   </style>
+
+  <!-- tts‑speak library for browser TTS -->
+  <script src="https://cdn.jsdelivr.net/npm/tts-speak@1.1.1/index.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <h2>Voice Input</h2>
-    <textarea id="transcript" readonly placeholder="Transcript will appear here..."></textarea><br>
+    <h2>Hold & Speak → Hear AI Reply</h2>
+    <textarea id="transcript" readonly placeholder="Your speech and AI reply appear here…"></textarea><br>
     <button id="speakBtn">Hold to Speak</button>
   </div>
 
   <script>
-    const speakBtn = document.getElementById("speakBtn");
+    const WEBHOOK_URL   = "https://auto.mithil.hackclub.app/webhook/parse-speech";
+    const speakBtn      = document.getElementById("speakBtn");
     const transcriptBox = document.getElementById("transcript");
-    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
 
-    // set up the SpeechRecognition API
+    // Initialize SpeechRecognition
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
+    recognition.lang            = 'en-US';
+    recognition.interimResults  = false;
     recognition.maxAlternatives = 1;
 
     let isListening = false;
 
-    // start listening on mousedown
+    // When user presses down → start listening
     speakBtn.addEventListener("mousedown", () => {
       if (!isListening) {
         isListening = true;
+        transcriptBox.value = "";
         recognition.start();
-        speakBtn.innerText = "Listening...";
+        speakBtn.innerText = "Listening…";
       }
     });
 
-    // stop on mouseup
+    // When user releases → stop listening
     speakBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
@@ -87,27 +95,40 @@
       }
     });
 
-    // handle successful speech-to-text
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      transcriptBox.value = text;
-      sendToWebhook(text);
+    // On speech result → send to n8n and handle reply
+    recognition.onresult = async (e) => {
+      const userText = e.results[0][0].transcript;
+      transcriptBox.value = "You: " + userText;
+
+      try {
+        // Send text to your n8n webhook (GET)
+        const res = await fetch(
+          `${WEBHOOK_URL}?text=${encodeURIComponent(userText)}`,
+          { method: "GET", mode: "cors" }
+        );
+        if (!res.ok) throw new Error(res.statusText);
+
+        // Expect JSON: { reply: "AI’s response" }
+        const { reply } = await res.json();
+        transcriptBox.value += "\nAI: " + reply;
+
+        // Speak the AI reply using tts‑speak
+        ttsSpeak
+          .setVoice('en-US')   // optional: choose voice code
+          .speak(reply)        // returns a Promise
+          .catch(console.error);
+
+      } catch (err) {
+        console.error(err);
+        transcriptBox.value += "\nError: " + err.message;
+      }
     };
 
     recognition.onerror = (e) => {
       transcriptBox.value = "Error: " + e.error;
+      isListening = false;
+      speakBtn.innerText = "Hold to Speak";
     };
-
-    // send via GET with ?text=…
-    function sendToWebhook(text) {
-      const url = `${WEBHOOK_URL}?text=${encodeURIComponent(text)}`;
-      fetch(url, {
-        method: "GET",
-        mode: "cors",
-      })
-      .then(res => console.log("Webhook GET status:", res.status))
-      .catch(err => console.error("Error sending to webhook:", err));
-    }
   </script>
 </body>
 </html>
