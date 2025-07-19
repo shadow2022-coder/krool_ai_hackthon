@@ -2,110 +2,126 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Simple STT Web App</title>
+  <link rel="icon" href="data:;base64,=" />
   <style>
     body {
+      font-family: sans-serif;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       height: 100vh;
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #eef2ff;
+      background: #f4f4f4;
     }
-    #container {
+    .container {
       background: white;
       padding: 2rem;
       border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
       text-align: center;
-      width: 320px;
+      width: 90%;
+      max-width: 400px;
     }
-    #transcript {
-      min-height: 80px;
-      margin: 1rem 0;
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: #fafafa;
-      color: #333;
-    }
-    #record-btn {
-      background: #6366f1;
+    button {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      background-color: #2563eb;
       color: white;
-      padding: 0.75rem 1.5rem;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: background 0.2s;
+      margin-top: 1rem;
     }
-    #record-btn.recording {
-      background: #f43f5e;
+    button:active {
+      background-color: #1d4ed8;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      resize: none;
+      font-size: 1rem;
     }
   </style>
 </head>
 <body>
-  <div id="container">
+  <div class="container">
     <h2>Voice Input</h2>
-    <div id="transcript">Press & hold to speak</div>
-    <button id="record-btn">Hold to Speak</button>
+    <textarea id="transcript" readonly placeholder="Transcript will appear here..."></textarea>
+    <br>
+    <button id="speakBtn">Hold to Speak</button>
   </div>
 
   <script>
-    // n8n webhook URL (expects GET with query params)
-    const WEBHOOK_URL = 'https://auto.mithil.hackclub.app/webhook/ba0ae282-999e-42eb-a24f-ef20582a59d6';
-    const btn = document.getElementById('record-btn');
-    const transcriptDiv = document.getElementById('transcript');
+    const speakBtn = document.getElementById("speakBtn");
+    const transcriptBox = document.getElementById("transcript");
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
+    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-speech";
 
-    if (!SpeechRecognition) {
-      transcriptDiv.textContent = 'Web Speech API not supported in this browser.';
-      btn.disabled = true;
-    } else {
-      recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-      recognition.onstart = () => {
-        btn.classList.add('recording');
-        btn.textContent = 'Listening...';
-        transcriptDiv.textContent = '';
-      };
+    let isListening = false;
 
-      recognition.onresult = (e) => {
-        const text = e.results[0][0].transcript;
-        transcriptDiv.textContent = text;
-        sendToWebhook(text);
-      };
+    speakBtn.addEventListener("mousedown", () => {
+      if (!isListening) {
+        isListening = true;
+        recognition.start();
+        speakBtn.innerText = "Listening...";
+        console.log("Recognition started");
+      }
+    });
 
-      recognition.onerror = (e) => {
-        transcriptDiv.textContent = 'Error: ' + e.error;
-      };
+    speakBtn.addEventListener("mouseup", () => {
+      if (isListening) {
+        recognition.stop();
+        isListening = false;
+        speakBtn.innerText = "Hold to Speak";
+        console.log("Recognition stopped");
+      }
+    });
 
-      recognition.onend = () => {
-        btn.classList.remove('recording');
-        btn.textContent = 'Hold to Speak';
-      };
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript;
+      transcriptBox.value = text;
+      console.log("Result:", text);
+      sendToWebhook(text);
+    };
 
-      btn.addEventListener('mousedown', () => recognition.start());
-      btn.addEventListener('touchstart', (e) => { e.preventDefault(); recognition.start(); });
-      btn.addEventListener('mouseup', () => recognition.stop());
-      btn.addEventListener('touchend', () => recognition.stop());
-    }
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      transcriptBox.value = "Error: " + event.error;
+    };
 
     function sendToWebhook(text) {
-      const params = new URLSearchParams({
-        text,
-        timestamp: new Date().toISOString()
+      const data = {
+        text: text,
+        timestamp: Date.now()
+      };
+
+      console.log("Sending POST to:", WEBHOOK_URL, data);
+
+      fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      })
+      .then(response => {
+        console.log("Webhook response status:", response.status);
+      })
+      .catch(error => {
+        console.error("Error sending to webhook:", error);
       });
-      fetch(`${WEBHOOK_URL}?${params}`, { method: 'GET' })
-        .then(res => console.log('Webhook response status:', res.status))
-        .catch(err => console.error('Webhook error:', err));
     }
   </script>
 </body>
