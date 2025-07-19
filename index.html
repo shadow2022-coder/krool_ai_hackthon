@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>STT + Automatic TTS Web App</title>
+  <title>Conversational Voice AI</title>
   <style>
     body {
       font-family: sans-serif;
@@ -11,61 +11,48 @@
       justify-content: center;
       height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #1f1d36 0%, #2a284a 100%); /* Dark gradient */
-      color: #e2e8f0; /* Add this to make text visible on dark background */
+      background: linear-gradient(135deg, #1f1d36 0%, #2a284a 100%);
+      color: #e2e8f0;
     }
     .container {
-      background: #363456; /* Darker container background */
+      background: #363456;
       padding: 2rem;
       border-radius: 12px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.3); /* Darker shadow */
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
       text-align: center;
       width: 90%;
       max-width: 400px;
     }
     h2 {
-      color: #cbd5e1; /* Lighter heading color */
+      color: #cbd5e1;
     }
-    button {
-      padding: 1rem 2rem;
-      font-size: 1rem;
-      background-color: #6d28d9; /* Deep purple button */
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    button:disabled { opacity: 0.6; cursor: default; }
     textarea {
       width: 100%;
-      height: 120px;
+      height: 200px;
       margin-top: 1rem;
       padding: 0.5rem;
       border-radius: 6px;
-      border: 1px solid #4a486b; /* Darker border for textarea */
+      border: 1px solid #4a486b;
       font-size: 1rem;
-      background-color: #363456; /* Darker textarea background */
-      color: #e2e8f0; /* Light text for textarea */
+      background-color: #363456;
+      color: #e2e8f0;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Press & Speak — auto TTS reply</h2>
-    <textarea id="transcript" readonly placeholder="Your speech & AI reply appear here…"></textarea><br>
-    <button id="speakBtn">Hold to Speak</button>
+    <h2>🎤 Talking AI (ASR + TTS)</h2>
+    <textarea id="transcript" readonly placeholder="Start speaking… AI will respond."></textarea><br>
   </div>
 
   <script>
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-    const speakBtn = document.getElementById("speakBtn");
     const transcriptBox = document.getElementById("transcript");
     let voices = [];
 
-    // Load voices when available
+    // Load voices
     function loadVoices() {
       voices = speechSynthesis.getVoices();
-      console.log("Voices loaded:", voices);
     }
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
@@ -77,67 +64,53 @@
       if (voices.length) {
         msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
       }
-      msg.onerror = e => console.error("TTS error:", e.error);
-      msg.onstart = () => console.log("TTS started");
-      msg.onend = () => console.log("TTS ended");
       speechSynthesis.speak(msg);
     }
 
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = "en-US";
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    recognition.continuous = true;
 
-    let isListening = false;
     let userText = "";
 
-    // Start recording
-    speakBtn.addEventListener("mousedown", () => {
-      if (!isListening) {
-        isListening = true;
-        transcriptBox.value = "";
-        recognition.start();
-        speakBtn.innerText = "Listening…";
-      }
-    });
-
-    // Stop recording and send
-    speakBtn.addEventListener("mouseup", () => {
-      if (isListening) {
-        recognition.stop();
-        isListening = false;
-        speakBtn.innerText = "Hold to Speak";
-      }
-    });
-
     recognition.onresult = e => {
-      userText = e.results[0][0].transcript;
-      transcriptBox.value = "You: " + userText;
+      const last = e.results.length - 1;
+      userText = e.results[last][0].transcript.trim();
+      transcriptBox.value += `\nYou: ${userText}`;
       sendToWebhook(userText);
     };
 
     recognition.onerror = e => {
-      console.error("STT error:", e.error);
-      transcriptBox.value = "Error: " + e.error;
-      isListening = false;
-      speakBtn.innerText = "Hold to Speak";
+      console.error("ASR error:", e.error);
+      transcriptBox.value += `\nError: ${e.error}`;
+      recognition.stop();
+      setTimeout(() => recognition.start(), 2000); // Restart on error
+    };
+
+    recognition.onend = () => {
+      console.warn("ASR stopped. Restarting...");
+      setTimeout(() => recognition.start(), 500);
     };
 
     async function sendToWebhook(text) {
-      transcriptBox.value += "\n(Waiting for AI reply...)";
+      transcriptBox.value += `\n(Thinking...)`;
       try {
         const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
           method: "GET", mode: "cors"
         });
         if (!res.ok) throw new Error(res.statusText);
         const aiReply = await res.text();
-        transcriptBox.value = "You: " + userText + "\nAI: " + aiReply;
-        speakText(aiReply);  // 🔊 Play TTS automatically
+        transcriptBox.value += `\nAI: ${aiReply}`;
+        speakText(aiReply);
       } catch (err) {
-        console.error("Fetch error:", err);
-        transcriptBox.value += "\nError: " + err.message;
+        console.error("Webhook fetch error:", err);
+        transcriptBox.value += `\nError: ${err.message}`;
       }
     }
+
+    // Start the conversation
+    recognition.start();
   </script>
 </body>
 </html>
