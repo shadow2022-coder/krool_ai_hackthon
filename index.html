@@ -1,199 +1,313 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <title>STT + Automatic TTS Web App</title>
-
   <style>
-
-    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f4f4; }
-
-    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
-
-    button { padding: 1rem 2rem; font-size: 1rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
-
-    button:disabled { opacity: 0.6; cursor: default; }
-
-    textarea { width: 100%; height: 120px; margin-top: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
-
+    * {
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh; 
+      margin: 0; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .container { 
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 3rem 2.5rem; 
+      border-radius: 24px; 
+      box-shadow: 
+        0 20px 40px rgba(0,0,0,0.1),
+        0 8px 16px rgba(0,0,0,0.06);
+      text-align: center; 
+      width: 100%; 
+      max-width: 450px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+      background-size: 200% 100%;
+      animation: shimmer 3s linear infinite;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    
+    h2 { 
+      color: #2d3748; 
+      font-size: 1.75rem; 
+      font-weight: 700; 
+      margin: 0 0 2rem 0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    
+    .mic-icon {
+      font-size: 1.2rem;
+      margin-right: 0.5rem;
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+    
+    button { 
+      padding: 1.25rem 2.5rem; 
+      font-size: 1.1rem; 
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; 
+      border: none; 
+      border-radius: 16px; 
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      position: relative;
+      overflow: hidden;
+      min-width: 180px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+    }
+    
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:hover::before {
+      left: 100%;
+    }
+    
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    button:disabled { 
+      opacity: 0.6; 
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .listening {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+      box-shadow: 0 0 20px rgba(72, 187, 120, 0.5) !important;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 20px rgba(72, 187, 120, 0.5); }
+      50% { box-shadow: 0 0 30px rgba(72, 187, 120, 0.8); }
+      100% { box-shadow: 0 0 20px rgba(72, 187, 120, 0.5); }
+    }
+    
+    .textarea-container {
+      position: relative;
+      margin: 2rem 0 2.5rem 0;
+    }
+    
+    textarea { 
+      width: 100%; 
+      height: 140px; 
+      padding: 1rem; 
+      border-radius: 16px; 
+      border: 2px solid #e2e8f0;
+      font-size: 1rem; 
+      font-family: inherit;
+      line-height: 1.5;
+      resize: none;
+      background: rgba(247, 250, 252, 0.8);
+      color: #2d3748;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(5px);
+    }
+    
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.1);
+      background: rgba(255, 255, 255, 0.9);
+    }
+    
+    textarea::placeholder {
+      color: #a0aec0;
+      font-style: italic;
+    }
+    
+    .status-indicator {
+      position: absolute;
+      top: -10px;
+      right: 15px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #cbd5e0;
+      transition: all 0.3s ease;
+    }
+    
+    .status-indicator.active {
+      background: #48bb78;
+      box-shadow: 0 0 10px rgba(72, 187, 120, 0.5);
+      animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    @media (max-width: 480px) {
+      .container {
+        margin: 10px;
+        padding: 2rem 1.5rem;
+      }
+      
+      h2 {
+        font-size: 1.5rem;
+      }
+      
+      button {
+        padding: 1rem 2rem;
+        font-size: 0.85rem;
+      }
+    }
   </style>
-
 </head>
 
 <body>
-
   <div class="container">
-
-    <h2>Press & Speak — auto TTS reply</h2>
-
-    <textarea id="transcript" readonly placeholder="Your speech & AI reply appear here…"></textarea><br>
-
-    <button id="speakBtn">Hold to Speak</button>
-
+    <h2>🎤 Press & Speak — Auto TTS Reply</h2>
+    <div class="textarea-container">
+      <div class="status-indicator" id="statusIndicator"></div>
+      <textarea id="transcript" readonly placeholder="Your speech & AI reply will appear here... Hold the button and start speaking!"></textarea>
+    </div>
+    <button id="speakBtn">
+      <span class="mic-icon">🎙️</span>
+      Hold to Speak
+    </button>
   </div>
 
-
   <script>
-
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-
     const speakBtn = document.getElementById("speakBtn");
-
     const transcriptBox = document.getElementById("transcript");
-
+    const statusIndicator = document.getElementById("statusIndicator");
     let voices = [];
 
-
     // Load voices when available
-
     function loadVoices() {
-
       voices = speechSynthesis.getVoices();
-
       console.log("Voices loaded:", voices);
-
     }
-
     speechSynthesis.onvoiceschanged = loadVoices;
-
     loadVoices();
 
-
     function speakText(text) {
-
       speechSynthesis.cancel();
-
       const msg = new SpeechSynthesisUtterance(text);
-
       msg.lang = "en-US";
-
       if (voices.length) {
-
         msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
-
       }
-
       msg.onerror = e => console.error("TTS error:", e.error);
-
       msg.onstart = () => console.log("TTS started");
-
       msg.onend = () => console.log("TTS ended");
-
       speechSynthesis.speak(msg);
-
     }
-
 
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-
     recognition.lang = "en-US";
-
     recognition.interimResults = false;
-
     recognition.maxAlternatives = 1;
 
-
     let isListening = false;
-
     let userText = "";
 
-
     // Start recording
-
     speakBtn.addEventListener("mousedown", () => {
-
       if (!isListening) {
-
         isListening = true;
-
         transcriptBox.value = "";
-
         recognition.start();
-
-        speakBtn.innerText = "Listening…";
-
+        speakBtn.innerHTML = '<span class="mic-icon">🔴</span>Listening…';
+        speakBtn.classList.add("listening");
+        statusIndicator.classList.add("active");
       }
-
     });
-
 
     // Stop recording and send
-
     speakBtn.addEventListener("mouseup", () => {
-
       if (isListening) {
-
         recognition.stop();
-
         isListening = false;
-
-        speakBtn.innerText = "Hold to Speak";
-
+        speakBtn.innerHTML = '<span class="mic-icon">🎙️</span>Hold to Speak';
+        speakBtn.classList.remove("listening");
+        statusIndicator.classList.remove("active");
       }
-
     });
 
-
     recognition.onresult = e => {
-
       userText = e.results[0][0].transcript;
-
       transcriptBox.value = "You: " + userText;
-
       sendToWebhook(userText);
-
     };
-
 
     recognition.onerror = e => {
-
       console.error("STT error:", e.error);
-
       transcriptBox.value = "Error: " + e.error;
-
       isListening = false;
-
-      speakBtn.innerText = "Hold to Speak";
-
+      speakBtn.innerHTML = '<span class="mic-icon">🎙️</span>Hold to Speak';
+      speakBtn.classList.remove("listening");
+      statusIndicator.classList.remove("active");
     };
 
-
     async function sendToWebhook(text) {
-
       transcriptBox.value += "\n(Waiting for AI reply...)";
-
       try {
-
         const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
-
           method: "GET", mode: "cors"
-
         });
-
         if (!res.ok) throw new Error(res.statusText);
-
         const aiReply = await res.text();
-
         transcriptBox.value = "You: " + userText + "\nAI: " + aiReply;
-
         speakText(aiReply);  // 🔊 Play TTS automatically
-
       } catch (err) {
-
         console.error("Fetch error:", err);
-
         transcriptBox.value += "\nError: " + err.message;
-
       }
-
     }
-
   </script>
-
 </body>
-
 </html>
