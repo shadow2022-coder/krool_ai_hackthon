@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>STT + TTS Web App</title>
-  <link rel="icon" href="data:;base64,=" />
   <style>
     body {
       font-family: sans-serif;
@@ -53,7 +52,7 @@
     }
   </style>
 
-  <!-- tts‑speak library for browser TTS -->
+  <!-- Corrected tts‑speak library include -->
   <script src="https://cdn.jsdelivr.net/npm/tts-speak@1.1.1/index.min.js"></script>
 </head>
 <body>
@@ -73,6 +72,18 @@
     recognition.lang            = 'en-US';
     recognition.interimResults  = false;
     recognition.maxAlternatives = 1;
+
+    // Instantiate the TTS engine once
+    let tts;
+    try {
+      tts = new TtsSpeak();
+      // Optional: configure voice/rate/volume here
+      tts.setVoice('en-US');
+      // tts.setRate(1.0);
+      // tts.setVolume(1.0);
+    } catch (err) {
+      console.error("Failed to initialize TtsSpeak:", err);
+    }
 
     let isListening = false;
 
@@ -95,28 +106,30 @@
       }
     });
 
-    // Handle result
+    // Handle STT result
     recognition.onresult = async (e) => {
       const userText = e.results[0][0].transcript;
       transcriptBox.value = "You: " + userText;
 
       try {
-        // Fetch plain-text reply
         const res = await fetch(
           `${WEBHOOK_URL}?text=${encodeURIComponent(userText)}`,
           { method: "GET", mode: "cors" }
         );
         if (!res.ok) throw new Error(res.statusText);
 
-        // Read as text, not JSON
+        // Read plain-text reply
         const reply = await res.text();
         transcriptBox.value += "\nAI: " + reply;
 
-        // Speak it
-        ttsSpeak
-          .setVoice('en-US')   // optional
-          .speak(reply)
-          .catch(console.error);
+        // Speak it if TTS initialized
+        if (tts) {
+          tts.speak(reply)
+            .then(() => console.log("Spoken:", reply))
+            .catch(err => console.error("TTS error:", err));
+        } else {
+          console.warn("TTS engine not available.");
+        }
 
       } catch (err) {
         console.error(err);
@@ -125,6 +138,7 @@
     };
 
     recognition.onerror = (e) => {
+      console.error("STT error:", e);
       transcriptBox.value = "Error: " + e.error;
       isListening = false;
       speakBtn.innerText = "Hold to Speak";
