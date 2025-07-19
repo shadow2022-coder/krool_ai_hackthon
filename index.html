@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Natural AI Conversation</title>
+  <title>Interruptible AI Conversation</title>
   <style>
     * {
       margin: 0;
@@ -86,6 +86,12 @@
       margin-left: 0.5rem;
     }
     
+    .interrupted-message {
+      color: #e53e3e;
+      font-style: italic;
+      opacity: 0.8;
+    }
+    
     .status-message {
       color: #718096;
       font-style: italic;
@@ -141,6 +147,14 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
+    .mic-button.interrupted {
+      background: linear-gradient(135deg, #ff8787, #ff6b6b);
+      animation: interrupted-flash 0.3s ease-out;
+      box-shadow: 
+        0 0 30px rgba(255, 135, 135, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
     .mic-button.inactive {
       background: linear-gradient(135deg, #ff6b6b, #ee5a52);
       box-shadow: 
@@ -165,6 +179,12 @@
       0%, 100% { transform: scale(1); }
       25% { transform: scale(1.02); }
       75% { transform: scale(0.98); }
+    }
+    
+    @keyframes interrupted-flash {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
     
     @keyframes processing-spin {
@@ -215,6 +235,32 @@
       background: rgba(255, 255, 255, 0.3);
     }
     
+    .sensitivity-indicator {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 20px;
+      height: 20px;
+      background: rgba(81, 207, 102, 0.8);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .sensitivity-indicator.active {
+      opacity: 1;
+      animation: sensitivity-pulse 0.5s ease-out;
+    }
+    
+    @keyframes sensitivity-pulse {
+      0% { transform: scale(0.5); }
+      100% { transform: scale(1); }
+    }
+    
     @media (max-width: 480px) {
       .container {
         padding: 2rem 1.5rem;
@@ -250,18 +296,22 @@
 
 <body>
   <div class="container">
-    <h1>📞 Natural AI Call</h1>
+    <h1>🔊 Smart AI Conversation</h1>
     
     <div class="chat-container">
       <div class="chat-messages" id="chatMessages">
-        <div class="status-message">Click the button to start your conversation...</div>
+        <div class="status-message">Click to start an intelligent conversation that adapts to you...</div>
       </div>
     </div>
     
-    <button class="mic-button inactive" id="micBtn">📞</button>
-    <div class="button-label" id="buttonLabel">Start Conversation</div>
+    <button class="mic-button inactive" id="micBtn">
+      📞
+      <div class="sensitivity-indicator" id="sensitivityIndicator">👂</div>
+    </button>
+    <div class="button-label" id="buttonLabel">Start Smart Conversation</div>
     
     <div class="conversation-controls" id="conversationControls">
+      <button class="control-btn" id="sensitivityBtn" title="Voice Sensitivity">🎚️</button>
       <button class="control-btn" id="muteBtn" title="Mute/Unmute">🔇</button>
       <button class="control-btn" id="endBtn" title="End Conversation">⏹️</button>
     </div>
@@ -275,6 +325,8 @@
     const conversationControls = document.getElementById("conversationControls");
     const muteBtn = document.getElementById("muteBtn");
     const endBtn = document.getElementById("endBtn");
+    const sensitivityBtn = document.getElementById("sensitivityBtn");
+    const sensitivityIndicator = document.getElementById("sensitivityIndicator");
     
     let voices = [];
     let isConversationActive = false;
@@ -282,8 +334,12 @@
     let isSpeaking = false;
     let isMuted = false;
     let currentUtterance = null;
-    let recognition = null;
-    let silenceTimeout = null;
+    let backgroundRecognition = null;
+    let mainRecognition = null;
+    let lastSpeechTime = 0;
+    let interruptionSensitivity = 3; // 1-5 scale, 3 is medium
+    let voiceActivityThreshold = 0.3;
+    let isProcessingInterruption = false;
 
     // Load voices
     function loadVoices() {
@@ -292,13 +348,21 @@
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
 
-    // Initialize speech recognition
+    // Initialize speech recognition instances
     function initializeRecognition() {
-      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = "en-US";
-      recognition.interimResults = true;  // Enable interim results for better flow
-      recognition.maxAlternatives = 1;
-      recognition.continuous = false;  // We'll restart manually for better control
+      // Main recognition for regular conversation
+      mainRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      mainRecognition.lang = "en-US";
+      mainRecognition.interimResults = true;
+      mainRecognition.maxAlternatives = 1;
+      mainRecognition.continuous = false;
+
+      // Background recognition for interruption detection
+      backgroundRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      backgroundRecognition.lang = "en-US";
+      backgroundRecognition.interimResults = true;
+      backgroundRecognition.maxAlternatives = 1;
+      backgroundRecognition.continuous = true; // Continuous listening for interruptions
     }
 
     // Add message to chat
@@ -310,25 +374,74 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // Stop current speech
-    function stopSpeaking() {
+    // Stop current speech immediately
+    function stopSpeaking(wasInterrupted = false) {
       if (isSpeaking && currentUtterance) {
         speechSynthesis.cancel();
         isSpeaking = false;
         micBtn.classList.remove('speaking');
+        
+        if (wasInterrupted) {
+          micBtn.classList.add('interrupted');
+          addMessage("AI interrupted - listening to you...", 'interrupted');
+          setTimeout(() => {
+            micBtn.classList.remove('interrupted');
+          }, 500);
+        }
+        
         currentUtterance = null;
       }
     }
 
-    // Start listening for speech
-    function startListening() {
+    // Handle voice activity detection for interruption
+    function handleVoiceActivity() {
+      if (isSpeaking && !isProcessingInterruption) {
+        const currentTime = Date.now();
+        const timeSinceLastSpeech = currentTime - lastSpeechTime;
+        
+        // More sensitive interruption based on sensitivity setting
+        const sensitivityDelay = Math.max(100, 600 - (interruptionSensitivity * 100));
+        
+        if (timeSinceLastSpeech > sensitivityDelay) {
+          isProcessingInterruption = true;
+          stopSpeaking(true);
+          
+          // Show sensitivity indicator
+          sensitivityIndicator.classList.add('active');
+          setTimeout(() => {
+            sensitivityIndicator.classList.remove('active');
+          }, 800);
+          
+          // Switch to main recognition for processing the interruption
+          setTimeout(() => {
+            startMainListening();
+            isProcessingInterruption = false;
+          }, 200);
+        }
+      }
+      lastSpeechTime = Date.now();
+    }
+
+    // Start background listening for interruptions
+    function startBackgroundListening() {
+      if (!isConversationActive || !backgroundRecognition) return;
+      
+      try {
+        backgroundRecognition.start();
+      } catch (err) {
+        console.log("Background recognition already running or failed:", err);
+      }
+    }
+
+    // Start main listening
+    function startMainListening() {
       if (!isConversationActive || isListening || isSpeaking) return;
       
       try {
         isListening = true;
-        recognition.start();
+        mainRecognition.start();
         micBtn.classList.add('listening');
-        micBtn.classList.remove('inactive', 'processing');
+        micBtn.classList.remove('inactive', 'processing', 'interrupted');
         buttonLabel.textContent = "Listening...";
         micBtn.textContent = "🎤";
         
@@ -337,31 +450,32 @@
           chatMessages.innerHTML = '';
         }
       } catch (err) {
-        console.error("Failed to start recognition:", err);
+        console.error("Failed to start main recognition:", err);
         isListening = false;
       }
     }
 
-    // Stop listening
-    function stopListening() {
-      if (isListening) {
+    // Stop main listening
+    function stopMainListening() {
+      if (isListening && mainRecognition) {
         try {
-          recognition.stop();
+          mainRecognition.stop();
         } catch (err) {
-          console.error("Error stopping recognition:", err);
+          console.error("Error stopping main recognition:", err);
         }
         isListening = false;
         micBtn.classList.remove('listening');
       }
     }
 
-    // Speak text with automatic conversation flow
+    // Speak text with interruption capability
     function speakText(text) {
       stopSpeaking();
       if (isMuted) return;
       
       currentUtterance = new SpeechSynthesisUtterance(text);
       currentUtterance.lang = "en-US";
+      currentUtterance.rate = 0.9; // Slightly slower for better interruption detection
       
       if (voices.length) {
         currentUtterance.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
@@ -370,9 +484,14 @@
       currentUtterance.onstart = () => {
         isSpeaking = true;
         micBtn.classList.add('speaking');
-        micBtn.classList.remove('listening', 'processing', 'inactive');
-        buttonLabel.textContent = "AI Speaking...";
+        micBtn.classList.remove('listening', 'processing', 'inactive', 'interrupted');
+        buttonLabel.textContent = "AI Speaking (interrupt anytime)...";
         micBtn.textContent = "🗣️";
+        
+        // Start background listening for interruptions while speaking
+        if (isConversationActive) {
+          startBackgroundListening();
+        }
       };
       
       currentUtterance.onend = () => {
@@ -380,11 +499,11 @@
         micBtn.classList.remove('speaking');
         currentUtterance = null;
         
-        // Automatically start listening again after AI finishes speaking
+        // Stop background listening and start main listening
         if (isConversationActive) {
           setTimeout(() => {
-            startListening();
-          }, 500); // Brief pause before listening again
+            startMainListening();
+          }, 300);
         }
       };
       
@@ -393,7 +512,7 @@
         micBtn.classList.remove('speaking');
         currentUtterance = null;
         if (isConversationActive) {
-          setTimeout(() => startListening(), 500);
+          setTimeout(() => startMainListening(), 300);
         }
       };
       
@@ -402,30 +521,40 @@
 
     // Start conversation
     function startConversation() {
-      if (!recognition) initializeRecognition();
+      if (!mainRecognition || !backgroundRecognition) initializeRecognition();
       
       isConversationActive = true;
       conversationControls.classList.add('show');
       micBtn.classList.remove('inactive');
-      buttonLabel.textContent = "Starting...";
+      buttonLabel.textContent = "Starting intelligent conversation...";
       
-      // Start listening immediately
+      // Start main listening immediately
       setTimeout(() => {
-        startListening();
-      }, 300);
+        startMainListening();
+      }, 500);
     }
 
     // End conversation
     function endConversation() {
       isConversationActive = false;
-      stopListening();
+      isProcessingInterruption = false;
+      stopMainListening();
       stopSpeaking();
       
+      // Stop background recognition
+      if (backgroundRecognition) {
+        try {
+          backgroundRecognition.stop();
+        } catch (err) {
+          console.log("Background recognition already stopped");
+        }
+      }
+      
       conversationControls.classList.remove('show');
-      micBtn.classList.remove('listening', 'speaking', 'processing');
+      micBtn.classList.remove('listening', 'speaking', 'processing', 'interrupted');
       micBtn.classList.add('inactive');
       micBtn.textContent = "📞";
-      buttonLabel.textContent = "Start Conversation";
+      buttonLabel.textContent = "Start Smart Conversation";
       
       addMessage("Conversation ended", 'status');
     }
@@ -433,8 +562,8 @@
     // Send to webhook
     async function sendToWebhook(text) {
       micBtn.classList.add('processing');
-      micBtn.classList.remove('listening');
-      buttonLabel.textContent = "Thinking...";
+      micBtn.classList.remove('listening', 'interrupted');
+      buttonLabel.textContent = "Processing your input...";
       micBtn.textContent = "🤔";
       
       try {
@@ -455,7 +584,7 @@
         addMessage(`Error: ${err.message}`, 'status');
         micBtn.classList.remove('processing');
         if (isConversationActive) {
-          setTimeout(() => startListening(), 1000);
+          setTimeout(() => startMainListening(), 1000);
         }
       }
     }
@@ -465,6 +594,15 @@
       if (!isConversationActive) {
         startConversation();
       }
+    });
+
+    // Sensitivity button
+    sensitivityBtn.addEventListener("click", () => {
+      interruptionSensitivity = (interruptionSensitivity % 5) + 1;
+      sensitivityBtn.textContent = `${interruptionSensitivity}📊`;
+      
+      const labels = ["Very Low", "Low", "Medium", "High", "Very High"];
+      addMessage(`Interruption sensitivity: ${labels[interruptionSensitivity - 1]}`, 'status');
     });
 
     // Mute button
@@ -482,17 +620,14 @@
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       initializeRecognition();
       
-      // Set up recognition event handlers
-      recognition.onresult = (e) => {
+      // Main recognition event handlers
+      mainRecognition.onresult = (e) => {
         let finalTranscript = '';
-        let interimTranscript = '';
         
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const transcript = e.results[i][0].transcript;
           if (e.results[i].isFinal) {
             finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
           }
         }
         
@@ -502,32 +637,61 @@
         }
       };
 
-      recognition.onend = () => {
+      mainRecognition.onend = () => {
         isListening = false;
         micBtn.classList.remove('listening');
         
-        // If conversation is still active but we're not speaking, restart listening
-        if (isConversationActive && !isSpeaking) {
+        // Restart if conversation is active and we're not processing an interruption
+        if (isConversationActive && !isSpeaking && !isProcessingInterruption) {
           setTimeout(() => {
-            startListening();
+            startMainListening();
           }, 100);
         }
       };
 
-      recognition.onerror = (e) => {
-        console.error("Speech recognition error:", e.error);
+      mainRecognition.onerror = (e) => {
+        console.error("Main recognition error:", e.error);
         isListening = false;
         micBtn.classList.remove('listening');
         
         if (e.error !== 'aborted' && e.error !== 'no-speech') {
-          addMessage(`Recognition error: ${e.error}`, 'status');
+          console.log(`Recognition error: ${e.error}`);
         }
         
-        // Restart listening if conversation is still active
         if (isConversationActive && !isSpeaking && e.error !== 'aborted') {
           setTimeout(() => {
-            startListening();
+            startMainListening();
           }, 1000);
+        }
+      };
+
+      // Background recognition for interruption detection
+      backgroundRecognition.onresult = (e) => {
+        // Just detect voice activity, don't process the speech
+        if (e.results.length > 0) {
+          handleVoiceActivity();
+        }
+      };
+
+      backgroundRecognition.onend = () => {
+        // Restart background listening if conversation is active and AI is speaking
+        if (isConversationActive && isSpeaking) {
+          setTimeout(() => {
+            startBackgroundListening();
+          }, 100);
+        }
+      };
+
+      backgroundRecognition.onerror = (e) => {
+        if (e.error !== 'aborted' && e.error !== 'no-speech') {
+          console.log("Background recognition error:", e.error);
+        }
+        
+        // Restart background listening if needed
+        if (isConversationActive && isSpeaking && e.error !== 'aborted') {
+          setTimeout(() => {
+            startBackgroundListening();
+          }, 500);
         }
       };
     } else {
@@ -543,8 +707,14 @@
       } else if (e.code === 'Escape' && isConversationActive) {
         e.preventDefault();
         endConversation();
+      } else if (e.code === 'KeyS' && isConversationActive && !e.repeat) {
+        e.preventDefault();
+        sensitivityBtn.click();
       }
     });
+
+    // Initialize sensitivity button display
+    sensitivityBtn.textContent = `${interruptionSensitivity}📊`;
   </script>
 </body>
 </html>
