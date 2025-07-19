@@ -6,11 +6,47 @@
   <title>Simple STT Web App</title>
   <link rel="icon" href="data:;base64,=" />
   <style>
-    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f4f4; }
-    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
-    button { padding: 1rem 2rem; font-size: 1rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 1rem; }
-    button:active { background-color: #1d4ed8; }
-    textarea { width: 100%; height: 100px; margin-top: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; resize: none; font-size: 1rem; }
+    body {
+      font-family: sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #f4f4f4;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+    button {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:active {
+      background-color: #1d4ed8;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      resize: none;
+      font-size: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -23,8 +59,9 @@
   <script>
     const speakBtn = document.getElementById("speakBtn");
     const transcriptBox = document.getElementById("transcript");
-    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-speech";
+    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
 
+    // set up the SpeechRecognition API
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'en-US';
     recognition.interimResults = false;
@@ -32,6 +69,7 @@
 
     let isListening = false;
 
+    // start listening on mousedown
     speakBtn.addEventListener("mousedown", () => {
       if (!isListening) {
         isListening = true;
@@ -39,6 +77,8 @@
         speakBtn.innerText = "Listening...";
       }
     });
+
+    // stop on mouseup
     speakBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
@@ -47,24 +87,25 @@
       }
     });
 
+    // handle successful speech-to-text
     recognition.onresult = (e) => {
       const text = e.results[0][0].transcript;
       transcriptBox.value = text;
       sendToWebhook(text);
     };
+
     recognition.onerror = (e) => {
       transcriptBox.value = "Error: " + e.error;
     };
 
+    // send via GET with ?text=…
     function sendToWebhook(text) {
-      const data = { text, timestamp: Date.now() };
-      fetch(WEBHOOK_URL, {
-        method: "POST",
+      const url = `${WEBHOOK_URL}?text=${encodeURIComponent(text)}`;
+      fetch(url, {
+        method: "GET",
         mode: "cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
       })
-      .then(res => console.log("Webhook status:", res.status))
+      .then(res => console.log("Webhook GET status:", res.status))
       .catch(err => console.error("Error sending to webhook:", err));
     }
   </script>
