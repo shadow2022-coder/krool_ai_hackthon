@@ -31,7 +31,7 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      margin-top: 1rem;
+      margin: 0.5rem;
     }
     button:disabled {
       opacity: 0.6;
@@ -51,43 +51,36 @@
       font-size: 1rem;
     }
   </style>
-
-  <!-- Corrected tts‑speak library include -->
-  <script src="https://cdn.jsdelivr.net/npm/tts-speak@1.1.1/index.min.js"></script>
 </head>
 <body>
   <div class="container">
     <h2>Hold & Speak → Hear AI Reply</h2>
-    <textarea id="transcript" readonly placeholder="Your speech and AI reply…"></textarea><br>
+    <textarea id="transcript" readonly placeholder="Your speech and AI reply will appear here…"></textarea><br>
     <button id="speakBtn">Hold to Speak</button>
   </div>
 
   <script>
-    const WEBHOOK_URL   = "https://auto.mithil.hackclub.app/webhook-test/parse-voice";
+    const WEBHOOK_URL   = "https://auto.mithil.hackclub.app/webhook/parse-voice";
     const speakBtn      = document.getElementById("speakBtn");
     const transcriptBox = document.getElementById("transcript");
 
-    // Initialize SpeechRecognition
+    // Initialize Web Speech API SpeechRecognition for STT
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang            = 'en-US';
     recognition.interimResults  = false;
     recognition.maxAlternatives = 1;
 
-    // Instantiate the TTS engine once
-    let tts;
-    try {
-      tts = new TtsSpeak();
-      // Optional: configure voice/rate/volume here
-      tts.setVoice('en-US');
-      // tts.setRate(1.0);
-      // tts.setVolume(1.0);
-    } catch (err) {
-      console.error("Failed to initialize TtsSpeak:", err);
-    }
-
     let isListening = false;
 
-    // Start listening
+    // Helper: speak text via Web Speech API
+    function speakText(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      // optional: utterance.rate = 1.0; utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Start listening on mousedown
     speakBtn.addEventListener("mousedown", () => {
       if (!isListening) {
         isListening = true;
@@ -97,7 +90,7 @@
       }
     });
 
-    // Stop listening
+    // Stop listening on mouseup
     speakBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
@@ -106,7 +99,7 @@
       }
     });
 
-    // Handle STT result
+    // On STT result: send to n8n, display & then TTS the reply
     recognition.onresult = async (e) => {
       const userText = e.results[0][0].transcript;
       transcriptBox.value = "You: " + userText;
@@ -118,18 +111,12 @@
         );
         if (!res.ok) throw new Error(res.statusText);
 
-        // Read plain-text reply
+        // read plain-text reply
         const reply = await res.text();
         transcriptBox.value += "\nAI: " + reply;
 
-        // Speak it if TTS initialized
-        if (tts) {
-          tts.speak(reply)
-            .then(() => console.log("Spoken:", reply))
-            .catch(err => console.error("TTS error:", err));
-        } else {
-          console.warn("TTS engine not available.");
-        }
+        // speak it
+        speakText(reply);
 
       } catch (err) {
         console.error(err);
