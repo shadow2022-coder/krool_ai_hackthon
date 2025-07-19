@@ -2,312 +2,533 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>STT + Automatic TTS Web App</title>
+  <title>AI Voice Call Interface</title>
   <style>
     * {
+      margin: 0;
+      padding: 0;
       box-sizing: border-box;
     }
     
     body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      min-height: 100vh; 
-      margin: 0; 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 20px;
+      animation: gradientShift 8s ease infinite;
+      background-size: 400% 400%;
+      color: white;
     }
     
-    .container { 
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 3rem 2.5rem; 
-      border-radius: 24px; 
-      box-shadow: 
-        0 20px 40px rgba(0,0,0,0.1),
-        0 8px 16px rgba(0,0,0,0.06);
-      text-align: center; 
-      width: 100%; 
-      max-width: 450px;
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    .phone-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
-      background-size: 200% 100%;
-      animation: shimmer 3s linear infinite;
-    }
-    
-    @keyframes shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
-    }
-    
-    h2 { 
-      color: #2d3748; 
-      font-size: 1.75rem; 
-      font-weight: 700; 
-      margin: 0 0 2rem 0;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: -0.5px;
-    }
-    
-    .mic-icon {
-      font-size: 1.2rem;
-      margin-right: 0.5rem;
-      display: inline-block;
-      transition: transform 0.2s ease;
-    }
-    
-    button { 
-      padding: 1.25rem 2.5rem; 
-      font-size: 1.1rem; 
-      font-weight: 600;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white; 
-      border: none; 
-      border-radius: 16px; 
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-      position: relative;
-      overflow: hidden;
-      min-width: 180px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      font-size: 0.9rem;
-    }
-    
-    button::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
       width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-      transition: left 0.5s;
+      max-width: 380px;
+      height: 600px;
+      border-radius: 30px;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 
+        0 25px 50px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
     }
     
-    button:hover::before {
-      left: 100%;
+    .status-badge {
+      background: rgba(102, 126, 234, 0.3);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      backdrop-filter: blur(10px);
     }
     
-    button:active {
-      transform: translateY(0);
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    button:disabled { 
-      opacity: 0.6; 
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    .listening {
-      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
-      box-shadow: 0 0 20px rgba(72, 187, 120, 0.5) !important;
-      animation: pulse 1.5s infinite;
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #51cf66;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
     }
     
     @keyframes pulse {
-      0% { box-shadow: 0 0 20px rgba(72, 187, 120, 0.5); }
-      50% { box-shadow: 0 0 30px rgba(72, 187, 120, 0.8); }
-      100% { box-shadow: 0 0 20px rgba(72, 187, 120, 0.5); }
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
     }
     
-    .textarea-container {
+    .timer {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 300;
+      margin-bottom: 3rem;
+      color: white;
+      letter-spacing: 1px;
+    }
+    
+    .avatar-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
       position: relative;
-      margin: 2rem 0 2.5rem 0;
+      margin-bottom: 2rem;
     }
     
-    textarea { 
-      width: 100%; 
-      height: 140px; 
-      padding: 1rem; 
-      border-radius: 16px; 
-      border: 2px solid #e2e8f0;
-      font-size: 1rem; 
-      font-family: inherit;
-      line-height: 1.5;
-      resize: none;
-      background: rgba(247, 250, 252, 0.8);
-      color: #2d3748;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(5px);
-    }
-    
-    textarea:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 20px rgba(102, 126, 234, 0.1);
-      background: rgba(255, 255, 255, 0.9);
-    }
-    
-    textarea::placeholder {
-      color: #a0aec0;
-      font-style: italic;
-    }
-    
-    .status-indicator {
-      position: absolute;
-      top: -10px;
-      right: 15px;
-      width: 12px;
-      height: 12px;
+    .avatar {
+      width: 180px;
+      height: 180px;
       border-radius: 50%;
-      background: #cbd5e0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      z-index: 2;
+    }
+    
+    .sound-wave {
+      position: absolute;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      animation: wave-expand 2s infinite;
+    }
+    
+    .sound-wave:nth-child(1) {
+      width: 200px;
+      height: 200px;
+      animation-delay: 0s;
+    }
+    
+    .sound-wave:nth-child(2) {
+      width: 240px;
+      height: 240px;
+      animation-delay: 0.3s;
+    }
+    
+    .sound-wave:nth-child(3) {
+      width: 280px;
+      height: 280px;
+      animation-delay: 0.6s;
+    }
+    
+    @keyframes wave-expand {
+      0% {
+        transform: scale(0.8);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+    
+    .speaker-info {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .speaker-name {
+      font-size: 2rem;
+      font-weight: 300;
+      margin-bottom: 0.5rem;
+      color: white;
+    }
+    
+    .speaker-status {
+      font-size: 1rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 400;
+    }
+    
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1rem;
+    }
+    
+    .control-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .mic-btn {
+      background: linear-gradient(135deg, #51cf66, #40c057);
+    }
+    
+    .mic-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 15px 30px rgba(81, 207, 102, 0.4);
+    }
+    
+    .mic-btn.listening {
+      animation: listening-pulse 1.5s infinite;
+    }
+    
+    @keyframes listening-pulse {
+      0%, 100% { 
+        background: linear-gradient(135deg, #51cf66, #40c057);
+        box-shadow: 0 0 30px rgba(81, 207, 102, 0.5);
+      }
+      50% { 
+        background: linear-gradient(135deg, #69db7c, #51cf66);
+        box-shadow: 0 0 50px rgba(81, 207, 102, 0.8);
+      }
+    }
+    
+    .end-btn {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    }
+    
+    .end-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 15px 30px rgba(255, 107, 107, 0.4);
+    }
+    
+    .menu-btn {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+    
+    .menu-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+    
+    .chat-history {
+      position: absolute;
+      bottom: 120px;
+      left: 20px;
+      right: 20px;
+      max-height: 120px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 15px;
+      padding: 1rem;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transform: translateY(20px);
       transition: all 0.3s ease;
     }
     
-    .status-indicator.active {
-      background: #48bb78;
-      box-shadow: 0 0 10px rgba(72, 187, 120, 0.5);
-      animation: blink 1s infinite;
+    .chat-history.show {
+      opacity: 1;
+      transform: translateY(0);
     }
     
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+    .chat-message {
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-bottom: 0.5rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .user-msg { color: #69db7c; }
+    .ai-msg { color: #ffd43b; }
+    
+    .speaking .sound-wave {
+      display: block;
+    }
+    
+    .idle .sound-wave {
+      display: none;
     }
     
     @media (max-width: 480px) {
-      .container {
-        margin: 10px;
-        padding: 2rem 1.5rem;
+      .phone-container {
+        height: 580px;
+        padding: 1.5rem 1rem;
       }
       
-      h2 {
-        font-size: 1.5rem;
+      .avatar {
+        width: 150px;
+        height: 150px;
+        font-size: 3rem;
       }
       
-      button {
-        padding: 1rem 2rem;
-        font-size: 0.85rem;
-      }
+      .sound-wave:nth-child(1) { width: 170px; height: 170px; }
+      .sound-wave:nth-child(2) { width: 200px; height: 200px; }
+      .sound-wave:nth-child(3) { width: 230px; height: 230px; }
+    }
+    
+    ::-webkit-scrollbar {
+      width: 3px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
     }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <h2>🎤 Press & Speak — Auto TTS Reply</h2>
-    <div class="textarea-container">
-      <div class="status-indicator" id="statusIndicator"></div>
-      <textarea id="transcript" readonly placeholder="Your speech & AI reply will appear here... Hold the button and start speaking!"></textarea>
+  <div class="phone-container" id="phoneContainer">
+    <div class="header">
+      <div class="status-badge" id="statusBadge">
+        <div class="status-dot"></div>
+        <span id="statusText">Active</span>
+      </div>
     </div>
-    <button id="speakBtn">
-      <span class="mic-icon">🎙️</span>
-      Hold to Speak
-    </button>
+    
+    <div class="timer" id="timer">00:00:00</div>
+    
+    <div class="avatar-container">
+      <div class="sound-wave"></div>
+      <div class="sound-wave"></div>
+      <div class="sound-wave"></div>
+      <div class="avatar" id="avatar">🤖</div>
+    </div>
+    
+    <div class="speaker-info">
+      <div class="speaker-name">AI Assistant</div>
+      <div class="speaker-status" id="speakerStatus">Ready to chat</div>
+    </div>
+    
+    <div class="chat-history" id="chatHistory"></div>
+    
+    <div class="controls">
+      <button class="control-btn mic-btn" id="micBtn">🎤</button>
+      <button class="control-btn menu-btn" id="menuBtn">⋯</button>
+      <button class="control-btn end-btn" id="endBtn">📞</button>
+    </div>
   </div>
 
   <script>
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-    const speakBtn = document.getElementById("speakBtn");
-    const transcriptBox = document.getElementById("transcript");
-    const statusIndicator = document.getElementById("statusIndicator");
+    
+    // Elements
+    const micBtn = document.getElementById("micBtn");
+    const menuBtn = document.getElementById("menuBtn");
+    const endBtn = document.getElementById("endBtn");
+    const speakerStatus = document.getElementById("speakerStatus");
+    const phoneContainer = document.getElementById("phoneContainer");
+    const chatHistory = document.getElementById("chatHistory");
+    const timer = document.getElementById("timer");
+    const statusText = document.getElementById("statusText");
+    const avatar = document.getElementById("avatar");
+    
     let voices = [];
+    let isListening = false;
+    let isSpeaking = false;
+    let currentUtterance = null;
+    let startTime = Date.now();
+    let timerInterval = null;
+    let chatMessages = [];
 
-    // Load voices when available
+    // Initialize timer
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 1000);
+      updateTimer();
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+      const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+      const seconds = (elapsed % 60).toString().padStart(2, '0');
+      timer.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+
+    // Load voices
     function loadVoices() {
       voices = speechSynthesis.getVoices();
-      console.log("Voices loaded:", voices);
     }
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
 
-    function speakText(text) {
-      speechSynthesis.cancel();
-      const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = "en-US";
-      if (voices.length) {
-        msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
-      }
-      msg.onerror = e => console.error("TTS error:", e.error);
-      msg.onstart = () => console.log("TTS started");
-      msg.onend = () => console.log("TTS ended");
-      speechSynthesis.speak(msg);
+    // Add chat message
+    function addChatMessage(text, type) {
+      chatMessages.push({ text, type });
+      if (chatMessages.length > 10) chatMessages.shift();
+      
+      chatHistory.innerHTML = chatMessages.map(msg => 
+        `<div class="chat-message ${msg.type}-msg">${msg.text}</div>`
+      ).join('');
+      chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 
+    // Stop current speech
+    function stopSpeaking() {
+      if (isSpeaking && currentUtterance) {
+        speechSynthesis.cancel();
+        isSpeaking = false;
+        phoneContainer.classList.remove('speaking');
+        phoneContainer.classList.add('idle');
+      }
+    }
+
+    // Speak text
+    function speakText(text) {
+      stopSpeaking();
+      
+      currentUtterance = new SpeechSynthesisUtterance(text);
+      currentUtterance.lang = "en-US";
+      
+      if (voices.length) {
+        currentUtterance.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
+      }
+      
+      currentUtterance.onstart = () => {
+        isSpeaking = true;
+        phoneContainer.classList.add('speaking');
+        phoneContainer.classList.remove('idle');
+        speakerStatus.textContent = "Speaking...";
+        statusText.textContent = "AI Speaking";
+      };
+      
+      currentUtterance.onend = () => {
+        isSpeaking = false;
+        phoneContainer.classList.remove('speaking');
+        phoneContainer.classList.add('idle');
+        speakerStatus.textContent = "Ready to chat";
+        statusText.textContent = "Active";
+      };
+      
+      speechSynthesis.speak(currentUtterance);
+    }
+
+    // Speech recognition
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    let isListening = false;
-    let userText = "";
-
-    // Start recording
-    speakBtn.addEventListener("mousedown", () => {
+    // Mic button events
+    micBtn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
       if (!isListening) {
+        stopSpeaking();
+        
         isListening = true;
-        transcriptBox.value = "";
         recognition.start();
-        speakBtn.innerHTML = '<span class="mic-icon">🔴</span>Listening…';
-        speakBtn.classList.add("listening");
-        statusIndicator.classList.add("active");
+        micBtn.classList.add("listening");
+        speakerStatus.textContent = "Listening...";
+        statusText.textContent = "Listening";
+        phoneContainer.classList.add('idle');
       }
     });
 
-    // Stop recording and send
-    speakBtn.addEventListener("mouseup", () => {
+    micBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
         isListening = false;
-        speakBtn.innerHTML = '<span class="mic-icon">🎙️</span>Hold to Speak';
-        speakBtn.classList.remove("listening");
-        statusIndicator.classList.remove("active");
+        micBtn.classList.remove("listening");
+        speakerStatus.textContent = "Processing...";
+        statusText.textContent = "Processing";
       }
     });
 
-    recognition.onresult = e => {
-      userText = e.results[0][0].transcript;
-      transcriptBox.value = "You: " + userText;
+    // Menu button - toggle chat history
+    menuBtn.addEventListener("click", () => {
+      chatHistory.classList.toggle("show");
+    });
+
+    // End button - clear conversation
+    endBtn.addEventListener("click", () => {
+      stopSpeaking();
+      chatMessages = [];
+      chatHistory.innerHTML = '';
+      chatHistory.classList.remove("show");
+      speakerStatus.textContent = "Ready to chat";
+      statusText.textContent = "Active";
+      // Reset timer
+      clearInterval(timerInterval);
+      startTimer();
+    });
+
+    // Speech recognition results
+    recognition.onresult = (e) => {
+      const userText = e.results[0][0].transcript;
+      addChatMessage(`You: ${userText}`, 'user');
       sendToWebhook(userText);
     };
 
-    recognition.onerror = e => {
-      console.error("STT error:", e.error);
-      transcriptBox.value = "Error: " + e.error;
+    recognition.onerror = (e) => {
+      console.error("Speech recognition error:", e.error);
       isListening = false;
-      speakBtn.innerHTML = '<span class="mic-icon">🎙️</span>Hold to Speak';
-      speakBtn.classList.remove("listening");
-      statusIndicator.classList.remove("active");
+      micBtn.classList.remove("listening");
+      speakerStatus.textContent = "Ready to chat";
+      statusText.textContent = "Active";
     };
 
+    // Send to webhook
     async function sendToWebhook(text) {
-      transcriptBox.value += "\n(Waiting for AI reply...)";
       try {
         const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
-          method: "GET", mode: "cors"
+          method: "GET", 
+          mode: "cors"
         });
+        
         if (!res.ok) throw new Error(res.statusText);
+        
         const aiReply = await res.text();
-        transcriptBox.value = "You: " + userText + "\nAI: " + aiReply;
-        speakText(aiReply);  // 🔊 Play TTS automatically
+        addChatMessage(`AI: ${aiReply}`, 'ai');
+        speakText(aiReply);
+        
       } catch (err) {
         console.error("Fetch error:", err);
-        transcriptBox.value += "\nError: " + err.message;
+        addChatMessage(`Error: ${err.message}`, 'ai');
+        speakerStatus.textContent = "Ready to chat";
+        statusText.textContent = "Active";
       }
     }
+
+    // Initialize
+    startTimer();
+    phoneContainer.classList.add('idle');
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !isListening && !e.repeat) {
+        e.preventDefault();
+        micBtn.dispatchEvent(new MouseEvent('mousedown'));
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' && isListening) {
+        e.preventDefault();
+        micBtn.dispatchEvent(new MouseEvent('mouseup'));
+      }
+    });
   </script>
 </body>
 </html>
