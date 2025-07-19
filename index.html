@@ -2,69 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Therapy AI</title>
-  <link rel="stylesheet" href="style.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.3/dist/vosk.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple STT Web App</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eef2ff;
+    }
+    #container {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 320px;
+    }
+    #transcript {
+      min-height: 80px;
+      margin: 1rem 0;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fafafa;
+      color: #333;
+    }
+    #record-btn {
+      background: #6366f1;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #record-btn.recording {
+      background: #f43f5e;
+    }
+  </style>
 </head>
 <body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="status-indicator">
-        <span class="live-dot"></span>
-        <span class="live-text">Therapy AI</span>
-      </div>
-      <button id="history-btn" class="history-btn">⋮</button>
-    </header>
-
-    <!-- Main Chat Area -->
-    <main class="chat-area">
-      <!-- Processing Orb -->
-      <div id="processing-orb" class="processing-orb">
-        <div class="orb-inner">
-          <span id="orb-status">Tap to start</span>
-        </div>
-        <div class="processing-dots">
-          <span class="dot"></span>
-          <span class="dot"></span>
-          <span class="dot"></span>
-        </div>
-      </div>
-
-      <!-- Chat Messages -->
-      <div id="chat-messages" class="chat-messages">
-        <!-- Messages will be dynamically added here -->
-      </div>
-    </main>
-
-    <!-- Bottom Controls -->
-    <footer class="controls">
-      <div class="control-buttons">
-        <button id="mic-btn" class="control-btn primary" aria-label="Start recording">
-          <span class="mic-icon">🎤</span>
-        </button>
-        <button id="pause-btn" class="control-btn" aria-label="Pause" disabled>
-          <span>⏸️</span>
-        </button>
-        <button id="stop-btn" class="control-btn danger" aria-label="Stop session">
-          <span>⏹️</span>
-        </button>
-      </div>
-    </footer>
-
-    <!-- History Sidebar -->
-    <aside id="history-sidebar" class="history-sidebar hidden">
-      <div class="history-header">
-        <h3>Conversation History</h3>
-        <button id="close-history" class="close-btn">✕</button>
-      </div>
-      <div class="history-content">
-        <ul id="history-list" class="history-list"></ul>
-        <button id="clear-history" class="clear-btn">Clear All History</button>
-      </div>
-    </aside>
+  <div id="container">
+    <h2>Voice Input</h2>
+    <div id="transcript">Press & hold to speak</div>
+    <button id="record-btn">Hold to Speak</button>
   </div>
-  <script src="script.js"></script>
+
+  <script>
+    // n8n webhook URL (expects GET with query params)
+    const WEBHOOK_URL = 'https://auto.mithil.hackclub.app/webhook/ba0ae282-999e-42eb-a24f-ef20582a59d6';
+    const btn = document.getElementById('record-btn');
+    const transcriptDiv = document.getElementById('transcript');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+
+    if (!SpeechRecognition) {
+      transcriptDiv.textContent = 'Web Speech API not supported in this browser.';
+      btn.disabled = true;
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        btn.classList.add('recording');
+        btn.textContent = 'Listening...';
+        transcriptDiv.textContent = '';
+      };
+
+      recognition.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        transcriptDiv.textContent = text;
+        sendToWebhook(text);
+      };
+
+      recognition.onerror = (e) => {
+        transcriptDiv.textContent = 'Error: ' + e.error;
+      };
+
+      recognition.onend = () => {
+        btn.classList.remove('recording');
+        btn.textContent = 'Hold to Speak';
+      };
+
+      btn.addEventListener('mousedown', () => recognition.start());
+      btn.addEventListener('touchstart', (e) => { e.preventDefault(); recognition.start(); });
+      btn.addEventListener('mouseup', () => recognition.stop());
+      btn.addEventListener('touchend', () => recognition.stop());
+    }
+
+    function sendToWebhook(text) {
+      const params = new URLSearchParams({
+        text,
+        timestamp: new Date().toISOString()
+      });
+      fetch(`${WEBHOOK_URL}?${params}`, { method: 'GET' })
+        .then(res => console.log('Webhook response status:', res.status))
+        .catch(err => console.error('Webhook error:', err));
+    }
+  </script>
 </body>
 </html>
