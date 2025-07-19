@@ -2,75 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Conversational Voice AI</title>
- <style>
-  body {
-    font-family: sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-    background: #1e1e1e; /* Base dark gray */
-    color: #d4d4d4; /* Light gray text */
-  }
-  .container {
-    background: #252525; /* Slightly lighter dark gray for contrast */
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.5); /* Darker shadow */
-    text-align: center;
-    width: 90%;
-    max-width: 400px;
-  }
-  h2 {
-    color: #f0f0f0; /* Near white heading */
-  }
-  button {
-    padding: 1rem 2rem;
-    font-size: 1rem;
-    background-color: #333333; /* Medium dark gray button */
-    color: #ffffff; /* White button text */
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  button:hover {
-    background-color: #444444; /* Slightly lighter on hover */
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  textarea {
-    width: 100%;
-    height: 120px;
-    margin-top: 1rem;
-    padding: 0.5rem;
-    border-radius: 6px;
-    border: 1px solid #444444; /* Darker border for textarea */
-    font-size: 1rem;
-    background-color: #252525; /* Same as container */
-    color: #d4d4d4; /* Light gray text */
-  }
-  textarea::placeholder {
-    color: #777777; /* Darker placeholder text */
-  }
-</style>
+  <title>Interactive ASR + TTS Voice AI</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #2a284a; color: #e2e8f0; }
+    .container { background: #363456; padding: 2rem; border-radius: 12px; width: 90%; max-width: 400px; text-align: center; }
+    button { padding: 1rem 2rem; font-size: 1rem; background: #6d28d9; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    textarea { width: 100%; height: 150px; margin-top: 1rem; padding: .5rem; border-radius: 6px; border: 1px solid #4a486b; background: #363456; color: #e2e8f0; font-size: 1rem; }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h2>🎤 Talking AI (ASR + TTS)</h2>
-    <textarea id="transcript" readonly placeholder="Start speaking… AI will respond."></textarea><br>
+    <h2>🎙️ Voice AI (Press to Talk)</h2>
+    <button id="toggleBtn">Start Listening</button>
+    <textarea id="transcript" readonly placeholder="Transcript will appear here…"></textarea>
   </div>
 
   <script>
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-    const transcriptBox = document.getElementById("transcript");
+    const btn = document.getElementById('toggleBtn');
+    const transcriptBox = document.getElementById('transcript');
+
+    let listening = false;
     let voices = [];
 
-    // Load voices
     function loadVoices() {
       voices = speechSynthesis.getVoices();
     }
@@ -78,59 +33,58 @@
     loadVoices();
 
     function speakText(text) {
-      speechSynthesis.cancel();
+      speechSynthesis.cancel();  // Stop any ongoing speech immediately :contentReference[oaicite:1]{index=1}
       const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = "en-US";
-      if (voices.length) {
-        msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
-      }
+      msg.lang = 'en-US';
+      if (voices.length) msg.voice = voices.find(v => v.lang.includes('en-US')) || voices[0];
+      msg.onstart = () => recognition.stop();  // Stop ASR while AI speaks
+      msg.onend = () => { if (listening) recognition.start(); };
+      msg.onerror = () => console.error('TTS error');
       speechSynthesis.speak(msg);
     }
 
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = "en-US";
+    recognition.lang = 'en-US';
     recognition.interimResults = false;
-    recognition.continuous = true;
+    recognition.continuous = false;  // single-shot recognition :contentReference[oaicite:2]{index=2}
 
-    let userText = "";
-
-    recognition.onresult = e => {
-      const last = e.results.length - 1;
-      userText = e.results[last][0].transcript.trim();
-      transcriptBox.value += `\nYou: ${userText}`;
-      sendToWebhook(userText);
+    recognition.onresult = async e => {
+      const text = e.results[0][0].transcript.trim();
+      transcriptBox.value += `\nYou: ${text}`;
+      await handleUser(text);
     };
-
-    recognition.onerror = e => {
-      console.error("ASR error:", e.error);
-      transcriptBox.value += `\nError: ${e.error}`;
-      recognition.stop();
-      setTimeout(() => recognition.start(), 2000); // Restart on error
-    };
-
+    recognition.onspeechend = () => recognition.stop();
     recognition.onend = () => {
-      console.warn("ASR stopped. Restarting...");
-      setTimeout(() => recognition.start(), 500);
+      if (listening) btn.click();  // auto-stop listening if ended
+    };
+    recognition.onerror = e => {
+      transcriptBox.value += `\nASR error: ${e.error}`;
+      recognition.stop();
     };
 
-    async function sendToWebhook(text) {
-      transcriptBox.value += `\n(Thinking...)`;
+    async function handleUser(text) {
+      recognition.stop();
+      transcriptBox.value += `\n(Thinking…)`;
       try {
-        const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
-          method: "GET", mode: "cors"
-        });
-        if (!res.ok) throw new Error(res.statusText);
-        const aiReply = await res.text();
-        transcriptBox.value += `\nAI: ${aiReply}`;
-        speakText(aiReply);
+        const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`);
+        const ai = await res.text();
+        transcriptBox.value += `\nAI: ${ai}`;
+        speakText(ai);
       } catch (err) {
-        console.error("Webhook fetch error:", err);
         transcriptBox.value += `\nError: ${err.message}`;
       }
     }
 
-    // Start the conversation
-    recognition.start();
+    btn.onclick = () => {
+      listening = !listening;
+      btn.textContent = listening ? 'Stop Listening' : 'Start Listening';
+      if (listening) {
+        recognition.start();
+      } else {
+        recognition.stop();
+        speechSynthesis.cancel();
+      }
+    };
   </script>
 </body>
 </html>
