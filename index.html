@@ -70,9 +70,7 @@
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
     const btn = document.getElementById("toggleBtn");
     const transcriptBox = document.getElementById("transcript");
-
-    let listening = false;
-    let voices = [];
+    let listening = false, voices = [];
 
     function loadVoices() {
       voices = speechSynthesis.getVoices();
@@ -80,41 +78,28 @@
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
 
-    function speakText(text) {
-      speechSynthesis.cancel();  // cancel any ongoing TTS
-      const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = "en-US";
-      if (voices.length) msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
-      msg.onstart = () => recognition.stop();  // stop listening while speaking
-      msg.onend = () => { if (listening) btn.textContent = "Start Listening"; };
-      speechSynthesis.speak(msg);
-    }
-
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = "en-US";
+    recognition.continuous = true;        // continuous listening :contentReference[oaicite:5]{index=5}
     recognition.interimResults = false;
-    recognition.continuous = false;
+    recognition.lang = "en-US";
 
+    recognition.onstart = () => transcriptBox.value += `\n-- Listening...`;
     recognition.onresult = async e => {
-      const text = e.results[0][0].transcript.trim();
+      const text = e.results[e.results.length - 1][0].transcript.trim();
       transcriptBox.value += `\nYou: ${text}`;
+      recognition.pause();  // temporarily stop listening
       await handleUser(text);
     };
-
-    recognition.onspeechend = () => recognition.stop();
-
-    recognition.onend = () => {
-      listening = false;
-      btn.textContent = "Start Listening";
-    };
-
     recognition.onerror = e => {
       transcriptBox.value += `\nASR error: ${e.error}`;
-      recognition.stop();
+    };
+    recognition.onend = () => {
+      if (listening) {
+        setTimeout(() => recognition.start(), 500);  // restart on end :contentReference[oaicite:6]{index=6}
+      }
     };
 
     async function handleUser(text) {
-      btn.disabled = true;
       transcriptBox.value += `\n(Thinking…)`;
       try {
         const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`);
@@ -123,23 +108,34 @@
         speakText(ai);
       } catch (err) {
         transcriptBox.value += `\nError: ${err.message}`;
-      } finally {
-        btn.disabled = false;
+        resumeListening();
+      }
+    }
+
+    function speakText(text) {
+      speechSynthesis.cancel();
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "en-US";
+      if (voices.length) msg.voice = voices.find(v=>v.lang.includes("en-US"))||voices[0];
+      msg.onstart = () => recognition.pause();       // interrupt ASR during TTS
+      msg.onend = () => resumeListening();
+      speechSynthesis.speak(msg);
+    }
+
+    function resumeListening() {
+      if (listening) {
+        recognition.start();
       }
     }
 
     btn.onclick = () => {
-      if (!listening) {
-        listening = true;
-        btn.textContent = "Stop Listening";
-        transcriptBox.value += `\n--- Listening started ---`;
-        recognition.start();
-      } else {
-        listening = false;
-        btn.textContent = "Start Listening";
-        transcriptBox.value += `\n--- Listening stopped ---`;
-        recognition.stop();
+      listening = !listening;
+      btn.textContent = listening ? "Stop Listening" : "Start Listening";
+      if (listening) recognition.start();
+      else {
+        recognition.abort();
         speechSynthesis.cancel();
+        transcriptBox.value += `\n-- Stopped listening --`;
       }
     };
   </script>
