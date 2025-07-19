@@ -3,7 +3,7 @@ let isListening = false;
 let isProcessing = false;
 let currentSession = [];
 let sessionHistory = JSON.parse(localStorage.getItem('therapy_ai_history') || '[]');
-const n8nWebhookUrl = "YOUR_N8N_WEBHOOK_URL_HERE"; // Replace with your actual webhook URL
+const n8nWebhookUrl = "https://auto.mithil.hackclub.app/webhook-test/ba0ae282-999e-42eb-a24f-ef20582a59d6"; // Replace with your actual webhook URL
 
 // DOM Elements
 const micBtn = document.getElementById('mic-btn');
