@@ -3,60 +3,158 @@
 <head>
   <meta charset="UTF-8" />
   <title>Interactive ASR + TTS Voice AI</title>
-  <style>
-  body {
-    font-family: sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-    background: #1e1e1e; /* Base dark gray */
-    color: #d4d4d4; /* Light gray text */
-  }
-  .container {
-    background: #252525; /* Slightly lighter dark gray for contrast */
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.5); /* Darker shadow */
-    text-align: center;
-    width: 90%;
-    max-width: 400px;
-  }
-  h2 {
-    color: #f0f0f0; /* Near white heading */
-  }
-  button {
-    padding: 1rem 2rem;
-    font-size: 1rem;
-    background-color: #333333; /* Medium dark gray button */
-    color: #ffffff; /* White button text */
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  button:hover {
-    background-color: #444444; /* Slightly lighter on hover */
-  }
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  textarea {
-    width: 100%;
-    height: 120px;
-    margin-top: 1rem;
-    padding: 0.5rem;
-    border-radius: 6px;
-    border: 1px solid #444444; /* Darker border for textarea */
-    font-size: 1rem;
-    background-color: #252525; /* Same as container */
-    color: #d4d4d4; /* Light gray text */
-  }
-  textarea::placeholder {
-    color: #777777; /* Darker placeholder text */
-  }
+ <style>
+    body {
+        font-family: sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background: #f0f0f0; /* Light background to make the dark container stand out */
+        color: #d4d4d4;
+        overflow: hidden; /* Hide scrollbars if any elements go out of bounds */
+    }
+
+    .container {
+        background: #000000; /* Pure black background for the "phone screen" look */
+        padding: 1.5rem; /* Reduced padding to fit the screen */
+        border-radius: 20px; /* More rounded corners for the "phone" look */
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* Stronger, darker shadow */
+        text-align: center;
+        width: 90%;
+        max-width: 380px; /* Constrain width to resemble a phone */
+        height: 80vh; /* Make it taller like a phone screen */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Distribute content top, middle, bottom */
+        align-items: center;
+        position: relative; /* For absolute positioning of elements */
+        color: white; /* Default text color for the black background */
+    }
+
+    h2 {
+        color: #f0f0f0; /* White heading */
+        margin-top: 2rem; /* Push title down slightly */
+        margin-bottom: 0; /* Remove default bottom margin */
+    }
+
+    /* Voice Visualizer (the 5 dots) */
+    .voice-visualizer {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px; /* Space between ovals */
+        height: 100px; /* Height to contain the ovals */
+        width: 100%;
+        margin-top: auto; /* Push it towards the bottom center of its flexible space */
+        margin-bottom: auto; /* Center vertically in available space */
+    }
+
+    .pulse-dot {
+        width: 50px; /* Wider ovals */
+        height: 50px; /* Taller ovals */
+        background-color: white;
+        border-radius: 50%; /* Make them perfectly circular */
+        transform: scaleY(1); /* Initial state */
+        opacity: 0.8; /* Slightly transparent when idle */
+        transition: transform 0.2s ease, opacity 0.2s ease; /* Smooth transitions */
+    }
+
+    /* Listening state - animation applied via JS by adding/removing 'listening' class */
+    .voice-visualizer.listening .pulse-dot {
+        animation: pulseScale 1.5s infinite ease-in-out alternate;
+    }
+
+    /* Animation delay for each dot */
+    .voice-visualizer.listening .pulse-dot:nth-child(2) { animation-delay: 0.1s; }
+    .voice-visualizer.listening .pulse-dot:nth-child(3) { animation-delay: 0.2s; }
+    .voice-visualizer.listening .pulse-dot:nth-child(4) { animation-delay: 0.3s; }
+    .voice-visualizer.listening .pulse-dot:nth-child(5) { animation-delay: 0.4s; }
+
+    @keyframes pulseScale {
+        0%, 100% {
+            transform: scaleY(1); /* Default height */
+            opacity: 1;
+        }
+        50% {
+            transform: scaleY(0.7); /* Slightly shorter */
+            opacity: 0.6;
+        }
+    }
+
+    /* Instruction Text */
+    #instructionText {
+        color: #aaaaaa; /* Lighter gray for instruction */
+        font-size: 0.9em;
+        margin-top: 0;
+        margin-bottom: 2rem; /* Space above control bar */
+    }
+
+
+    /* Control Bar at the bottom */
+    .control-bar {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        width: 100%;
+        padding: 1rem 0;
+        margin-top: auto; /* Push to the very bottom */
+    }
+
+    .control-btn {
+        width: 55px; /* Fixed size for buttons */
+        height: 55px;
+        border-radius: 50%; /* Make them round */
+        border: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        font-size: 1.5rem;
+        color: white; /* Icon color */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .control-btn:active {
+        transform: scale(0.95); /* Slight press effect */
+    }
+
+    .control-btn.square {
+        background-color: #333333; /* Dark gray for stop button */
+    }
+
+    .control-btn.circle {
+        background-color: #ffffff; /* White background for main button */
+        color: black; /* Black icon on white background */
+        width: 65px; /* Larger main button */
+        height: 65px;
+        font-size: 2rem; /* Larger mic icon */
+    }
+
+    .control-btn.cross {
+        background-color: #ff3b30; /* Red for cancel button */
+    }
+
+    .control-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .icon {
+        display: block; /* Ensures icon is centered */
+        line-height: 1; /* Adjust line height for perfect centering */
+    }
+
+    .mic-icon {
+        font-size: 2.2rem; /* Adjust mic size specifically */
+    }
+
+    /* Hide the default transcript box, we'll use instruction text */
+    #transcript {
+      display: none;
+    }
 </style>
 </head>
 <body>
@@ -65,6 +163,29 @@
     <button id="toggleBtn">Start Listening</button>
     <textarea id="transcript" readonly placeholder="Transcript will appear here…"></textarea>
   </div>
+   <div class="container">
+        <h2>Press & Speak — auto TTS reply</h2>
+
+        <div class="voice-visualizer" id="voiceVisualizer">
+            <div class="pulse-dot"></div>
+            <div class="pulse-dot"></div>
+            <div class="pulse-dot"></div>
+            <div class="pulse-dot"></div>
+            <div class="pulse-dot"></div>
+        </div>
+
+        <textarea id="transcript" style="display: none;"></textarea>
+        <p id="instructionText">Tap to talk</p> <div class="control-bar">
+            <button id="stopBtn" class="control-btn square">
+                <span class="icon">&#9632;</span> </button>
+            <button id="mainBtn" class="control-btn circle">
+                <span class="icon mic-icon">🎤</span>
+            </button>
+            <button id="cancelBtn" class="control-btn cross">
+                <span class="icon">&times;</span> </button>
+        </div>
+    </div>
+
 
   <script>
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
