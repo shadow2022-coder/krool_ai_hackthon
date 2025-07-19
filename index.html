@@ -2,54 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>STT + TTS Web App</title>
+  <title>STT + Reliable TTS Web App</title>
   <style>
-    body {
-      font-family: sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      background: #f4f4f4;
-    }
-    .container {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 90%;
-      max-width: 400px;
-    }
-    button {
-      padding: 1rem 2rem;
-      font-size: 1rem;
-      background-color: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 0.5rem;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-    button:active:not(:disabled) {
-      background-color: #1d4ed8;
-    }
-    textarea {
-      width: 100%;
-      height: 120px;
-      margin-top: 1rem;
-      padding: 0.5rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      resize: none;
-      font-size: 1rem;
-    }
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f4f4; }
+    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
+    button { padding: 1rem 2rem; font-size: 1rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 0.5rem; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    button:active:not(:disabled) { background-color: #1d4ed8; }
+    textarea { width: 100%; height: 120px; margin-top: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; resize: none; font-size: 1rem; }
   </style>
 </head>
 <body>
@@ -60,27 +20,45 @@
   </div>
 
   <script>
-    const WEBHOOK_URL   = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-    const speakBtn      = document.getElementById("speakBtn");
+    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
+    const speakBtn = document.getElementById("speakBtn");
     const transcriptBox = document.getElementById("transcript");
 
-    // Initialize Web Speech API SpeechRecognition for STT
+    // Initialize speech recognition
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang            = 'en-US';
-    recognition.interimResults  = false;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
     let isListening = false;
+    let voices = [];
 
-    // Helper: speak text via Web Speech API
-    function speakText(text) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      // optional: utterance.rate = 1.0; utterance.volume = 1.0;
-      window.speechSynthesis.speak(utterance);
+    // Load voices list, wait until available :contentReference[oaicite:1]{index=1}
+    function loadVoices() {
+      voices = window.speechSynthesis.getVoices();
+      console.log("Available voices:", voices);
     }
 
-    // Start listening on mousedown
+    if ('onvoiceschanged' in speechSynthesis) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    loadVoices();
+
+    // Speak text helper
+    function speakText(text) {
+      window.speechSynthesis.cancel();
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = 'en-US';
+      if (voices.length) {
+        msg.voice = voices.find(v => v.lang.includes('en-US')) || voices[0];
+      }
+      msg.onstart = () => console.log("TTS started");
+      msg.onend = () => console.log("TTS ended");
+      msg.onerror = e => console.error("TTS error:", e.error);
+      window.speechSynthesis.speak(msg);
+    }
+
+    // STT handlers
     speakBtn.addEventListener("mousedown", () => {
       if (!isListening) {
         isListening = true;
@@ -90,7 +68,6 @@
       }
     });
 
-    // Stop listening on mouseup
     speakBtn.addEventListener("mouseup", () => {
       if (isListening) {
         recognition.stop();
@@ -99,23 +76,18 @@
       }
     });
 
-    // On STT result: send to n8n, display & then TTS the reply
     recognition.onresult = async (e) => {
       const userText = e.results[0][0].transcript;
       transcriptBox.value = "You: " + userText;
 
       try {
-        const res = await fetch(
-          `${WEBHOOK_URL}?text=${encodeURIComponent(userText)}`,
-          { method: "GET", mode: "cors" }
-        );
+        const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(userText)}`, {
+          method: "GET", mode: "cors"
+        });
         if (!res.ok) throw new Error(res.statusText);
 
-        // read plain-text reply
         const reply = await res.text();
         transcriptBox.value += "\nAI: " + reply;
-
-        // speak it
         speakText(reply);
 
       } catch (err) {
@@ -125,7 +97,7 @@
     };
 
     recognition.onerror = (e) => {
-      console.error("STT error:", e);
+      console.error("STT error:", e.error);
       transcriptBox.value = "Error: " + e.error;
       isListening = false;
       speakBtn.innerText = "Hold to Speak";
