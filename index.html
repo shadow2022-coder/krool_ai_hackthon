@@ -2,889 +2,104 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gemini Voice Assistant</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>STT + Automatic TTS Web App</title>
   <style>
-    /* Reset & Base Styles */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #100b2b 0%, #1e1b4b 100%); /* Deep dark gradient */
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      color: #e2e8f0; /* Light text for dark background */
-    }
-
-    /* Chat Container */
-    .chat-container {
-      background: rgba(25, 25, 50, 0.85); /* Darker, slightly transparent background */
-      backdrop-filter: blur(25px);
-      border-radius: 28px; /* Slightly more rounded */
-      box-shadow:
-        0 30px 60px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(255, 255, 255, 0.08); /* Subtle border for depth */
-      width: 100%;
-      max-width: 440px; /* Slightly wider */
-      height: 700px; /* Slightly taller */
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .chat-container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg,
-        rgba(255, 255, 255, 0.05) 0%,
-        rgba(255, 255, 255, 0.02) 100%);
-      pointer-events: none;
-      border-radius: 28px;
-    }
-
-    /* Header */
-    .chat-header {
-      background: linear-gradient(135deg, #3700b3 0%, #6200ee 100%); /* Deeper purple */
-      color: white;
-      padding: 2.5rem 1.8rem 1.8rem; /* More vertical padding */
-      text-align: center;
-      position: relative;
-      border-radius: 28px 28px 0 0;
-      overflow: hidden; /* For inner glow effect */
-    }
-
-    .chat-header::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(circle at top left,
-        rgba(139, 92, 246, 0.2) 0%,
-        transparent 70%);
-      pointer-events: none;
-    }
-
-    .chat-header h2 {
-      font-size: 1.6rem; /* Larger title */
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-
-    .chat-subtitle {
-      font-size: 0.95rem; /* Slightly larger subtitle */
-      opacity: 0.85;
-      margin-top: 0.4rem;
-      font-weight: 400;
-      position: relative;
-      z-index: 1;
-      line-height: 1.4;
-    }
-
-    .status-indicator {
-      position: absolute;
-      top: 2.2rem;
-      right: 1.8rem;
-      width: 12px; /* Slightly larger */
-      height: 12px;
-      border-radius: 50%;
-      background: #10b981; /* Green */
-      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); /* Softer pulse */
-      animation: statusPulse 2s ease-out infinite alternate; /* Smoother pulse */
-    }
-
-    /* Messages Area */
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1.8rem; /* More padding */
-      display: flex;
-      flex-direction: column;
-      gap: 1.4rem; /* More space between messages */
-      scroll-behavior: smooth;
-    }
-
-    .chat-messages::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .chat-messages::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05); /* Darker track */
-      border-radius: 3px;
-    }
-
-    .chat-messages::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2); /* Lighter thumb */
-      border-radius: 3px;
-    }
-
-    /* Message Bubbles */
-    .message {
-      max-width: 90%; /* Slightly wider messages */
-      word-wrap: break-word;
-      animation: messageSlide 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; /* Smoother entry */
-      opacity: 0; /* Start hidden for animation */
-      transform: translateY(15px); /* Start slightly below */
-    }
-
-    .user-message {
-      align-self: flex-end;
-      background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); /* Deeper green */
-      color: white;
-      border-radius: 22px 22px 8px 22px; /* More rounded, sharper corner */
-      padding: 1.1rem 1.4rem;
-      box-shadow: 0 6px 16px rgba(46, 125, 50, 0.35); /* Stronger shadow */
-      position: relative;
-    }
-
-    .user-message::before {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      right: 10px; /* Adjust for bubble shape */
-      width: 0;
-      height: 0;
-      border-left: 10px solid transparent;
-      border-right: 10px solid #2E7D32;
-      border-top: 10px solid #2E7D32;
-      transform: rotate(45deg);
-    }
-
-    .assistant-message {
-      align-self: flex-start;
-      background: linear-gradient(135deg, #37474F 0%, #263238 100%); /* Dark grey/blue */
-      color: #e2e8f0;
-      border-radius: 22px 22px 22px 8px; /* More rounded, sharper corner */
-      padding: 1.1rem 1.4rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border */
-      position: relative;
-    }
-
-    .assistant-message::before {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      left: 10px; /* Adjust for bubble shape */
-      width: 0;
-      height: 0;
-      border-left: 10px solid #263238;
-      border-right: 10px solid transparent;
-      border-top: 10px solid #263238;
-      transform: rotate(-45deg);
-    }
-
-    .message-content {
-      display: block;
-      font-size: 1rem; /* Slightly larger text */
-      line-height: 1.6;
-      font-weight: 400;
-    }
-
-    .timestamp {
-      font-size: 0.75rem; /* Slightly larger timestamp */
-      opacity: 0.6;
-      margin-top: 0.6rem;
-      display: block;
-      font-weight: 500;
-      text-align: right; /* Align right for user, left for assistant */
-    }
-
-    .assistant-message .timestamp {
-      text-align: left;
-    }
-
-    /* Action Bar (Footer) */
-    .action-bar {
-      padding: 2.2rem 1.8rem;
-      background: rgba(35, 35, 60, 0.8); /* Darker, slightly transparent */
-      backdrop-filter: blur(15px);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      position: relative;
-      border-radius: 0 0 28px 28px;
-    }
-
-    /* Recording Button */
-    .recording-button {
-      width: 88px; /* Larger button */
-      height: 88px;
-      border: none;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #673ab7 0%, #9C27B0 100%); /* Rich purple gradient */
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); /* More natural animation */
-      box-shadow:
-        0 10px 25px rgba(103, 58, 183, 0.4),
-        0 0 0 0 rgba(103, 58, 183, 0.3);
-    }
-
-    .recording-button:hover {
-      transform: translateY(-4px) scale(1.03);
-      box-shadow:
-        0 15px 35px rgba(103, 58, 183, 0.5),
-        0 0 0 0 rgba(103, 58, 183, 0.3);
-    }
-
-    .recording-button:active {
-      transform: translateY(1px) scale(0.97);
-      box-shadow:
-        0 5px 15px rgba(103, 58, 183, 0.3),
-        0 0 0 0 rgba(103, 58, 183, 0.3);
-    }
-
-    .recording-button.listening {
-      background: linear-gradient(135deg, #EF5350 0%, #D32F2F 100%); /* Red for listening */
-      animation: listeningPulse 1.8s ease-in-out infinite;
-      box-shadow:
-        0 10px 25px rgba(239, 83, 80, 0.5),
-        0 0 0 15px rgba(239, 83, 80, 0.1);
-    }
-
-    .recording-button.processing {
-      background: linear-gradient(135deg, #FFC107 0%, #FFA000 100%); /* Amber for processing */
-      animation: processingRotate 1.5s linear infinite;
-      box-shadow:
-        0 10px 25px rgba(255, 193, 7, 0.5),
-        0 0 0 15px rgba(255, 193, 7, 0.1);
-    }
-
-    .mic-icon {
-      width: 36px; /* Larger mic icon */
-      height: 36px;
-      fill: currentColor;
-      transition: all 0.3s ease;
-    }
-
-    .recording-button.listening .mic-icon {
-      transform: scale(1.15); /* Slightly bigger when listening */
-    }
-
-    .animated-ring {
-      position: absolute;
-      top: -8px; /* Slightly further out */
-      left: -8px;
-      right: -8px;
-      bottom: -8px;
-      border: 4px solid transparent; /* Thicker ring */
-      border-top: 4px solid currentColor;
-      border-radius: 50%;
-      opacity: 0;
-      animation: spin 1.5s linear infinite;
-    }
-
-    .recording-button.listening .animated-ring {
-      opacity: 0.8;
-    }
-
-    /* Processing Indicator */
-    .processing-indicator {
-      position: absolute;
-      bottom: 2rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(40, 40, 70, 0.95); /* Darker background */
-      color: #e2e8f0;
-      padding: 0.8rem 1.6rem;
-      border-radius: 50px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      backdrop-filter: blur(15px);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-      display: none;
-      transition: all 0.3s ease;
-    }
-
-    .processing-indicator.show {
-      display: flex; /* Use flex for dot alignment */
-      align-items: center;
-      gap: 0.5rem; /* Space between dot and text */
-      animation: slideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    .processing-indicator::before {
-      content: '';
-      position: static; /* Remove absolute positioning */
-      transform: none; /* Remove transform */
-      width: 6px; /* Larger dot */
-      height: 6px;
-      background: #42A5F5; /* Blue dot */
-      border-radius: 50%;
-      animation: processingDot 1.2s ease-in-out infinite;
-    }
-
-    /* Error Banner */
-    .error-banner {
-      background: linear-gradient(135deg, #ef9a9a 0%, #e57373 100%); /* Softer red gradient */
-      color: #b71c1c;
-      padding: 1.1rem 1.5rem;
-      text-align: center;
-      font-size: 0.95rem;
-      font-weight: 500;
-      border-left: 5px solid #d32f2f; /* Thicker border */
-      margin: 1rem 1.8rem; /* More margin */
-      border-radius: 16px; /* More rounded */
-      animation: errorSlide 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-      cursor: pointer;
-      box-shadow: 0 6px 16px rgba(211, 47, 47, 0.2);
-      transition: all 0.2s ease;
-    }
-
-    .error-banner:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(211, 47, 47, 0.25);
-    }
-
-    /* Welcome Message */
-    .welcome-message {
-      text-align: center;
-      color: #94a3b8; /* Softer grey */
-      font-style: italic;
-      padding: 3.5rem 2.5rem;
-      font-size: 1rem;
-      line-height: 1.7;
-      background: linear-gradient(135deg,
-        rgba(103, 58, 183, 0.08) 0%, /* Subtle purple background */
-        rgba(156, 39, 176, 0.08) 100%);
-      border-radius: 20px;
-      border: 1px solid rgba(103, 58, 183, 0.1);
-      margin: 2.5rem 0;
-      box-shadow: inset 0 0 15px rgba(103, 58, 183, 0.05); /* Inner shadow for depth */
-    }
-
-    .welcome-message::before {
-      content: '✨'; /* Changed emoji for a more "AI" feel */
-      display: block;
-      font-size: 2.5rem;
-      margin-bottom: 1.2rem;
-      animation: float 3s ease-in-out infinite;
-    }
-
-    /* Keyframe Animations (tuned for smoothness) */
-    @keyframes messageSlide {
-      from {
-        opacity: 0;
-        transform: translateY(15px) scale(0.98);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-    }
-
-    @keyframes errorSlide {
-      from {
-        opacity: 0;
-        transform: translateX(-15px) scale(0.98);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-      }
-    }
-
-    @keyframes statusPulse {
-      0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
-      }
-      50% {
-        opacity: 0.7;
-        transform: scale(0.9);
-        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
-      }
-    }
-
-    @keyframes listeningPulse {
-      0%, 100% {
-        box-shadow:
-          0 10px 25px rgba(239, 83, 80, 0.5),
-          0 0 0 15px rgba(239, 83, 80, 0.1);
-      }
-      50% {
-        box-shadow:
-          0 18px 40px rgba(239, 83, 80, 0.7),
-          0 0 0 30px rgba(239, 83, 80, 0.05);
-      }
-    }
-
-    @keyframes processingRotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes processingDot {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-8px); }
-    }
-
-    /* Responsive Design (tuned for new sizes) */
-    @media (max-width: 480px) {
-      body {
-        padding: 0.8rem;
-      }
-
-      .chat-container {
-        height: calc(100vh - 1.6rem);
-        border-radius: 24px;
-        max-width: none;
-      }
-
-      .chat-header {
-        padding: 2rem 1.2rem 1.2rem;
-        border-radius: 24px 24px 0 0;
-      }
-
-      .chat-header h2 {
-        font-size: 1.4rem;
-      }
-
-      .chat-messages {
-        padding: 1.2rem;
-        gap: 1.1rem;
-      }
-
-      .message {
-        max-width: 95%;
-      }
-
-      .recording-button {
-        width: 78px;
-        height: 78px;
-      }
-
-      .mic-icon {
-        width: 32px;
-        height: 32px;
-      }
-
-      .action-bar {
-        padding: 1.8rem;
-      }
-
-      .error-banner {
-        margin: 0.8rem 1.2rem;
-      }
-
-      .welcome-message {
-        padding: 3rem 2rem;
-        font-size: 0.95rem;
-      }
-      .welcome-message::before {
-        font-size: 2rem;
-      }
-    }
-
-    @media (max-width: 360px) {
-      .user-message,
-      .assistant-message {
-        padding: 0.9rem 1.1rem;
-        font-size: 0.9rem;
-      }
-
-      .recording-button {
-        width: 70px;
-        height: 70px;
-      }
-
-      .mic-icon {
-        width: 28px;
-        height: 28px;
-      }
-
-      .action-bar {
-        padding: 1.5rem;
-      }
-    }
-
-    /* Accessibility Improvements */
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-      }
-    }
-    /* Dark mode preferences handled by default theme */
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f4f4; }
+    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
+    button { padding: 1rem 2rem; font-size: 1rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    textarea { width: 100%; height: 120px; margin-top: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-header">
-      <h2>Gemini Voice Assistant</h2>
-      <p class="chat-subtitle">Speak naturally, get instant AI responses.</p>
-      <div class="status-indicator" title="Connected and ready"></div>
-    </div>
-
-    <div class="chat-messages" id="chatMessages" role="log" aria-live="polite">
-      <div class="welcome-message">
-        Hold the microphone button and speak your message. Release to send and get an AI response!
-      </div>
-    </div>
-
-    <div class="processing-indicator" id="processingIndicator">
-      Processing your message...
-    </div>
-
-    <div class="action-bar">
-      <button class="recording-button" id="recordBtn" aria-label="Hold to record voice message">
-        <div class="animated-ring"></div>
-        <svg class="mic-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-        </svg>
-      </button>
-      <span class="sr-only" id="buttonStatus">Ready to record</span>
-    </div>
+  <div class="container">
+    <h2>Press & Speak — auto TTS reply</h2>
+    <textarea id="transcript" readonly placeholder="Your speech & AI reply appear here…"></textarea><br>
+    <button id="speakBtn">Hold to Speak</button>
   </div>
 
   <script>
     const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
-
-    // DOM Elements
-    const recordBtn = document.getElementById("recordBtn");
-    const chatMessages = document.getElementById("chatMessages");
-    const processingIndicator = document.getElementById("processingIndicator");
-    const buttonStatus = document.getElementById("buttonStatus");
-
-    // State
+    const speakBtn = document.getElementById("speakBtn");
+    const transcriptBox = document.getElementById("transcript");
     let voices = [];
-    let isListening = false;
-    let isProcessing = false;
-    let recognition;
 
-    // Initialize Speech Recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.continuous = false;
-    } else {
-      showError("Speech recognition not supported in this browser.");
-    }
-
-    // Load TTS voices
+    // Load voices when available
     function loadVoices() {
       voices = speechSynthesis.getVoices();
-      console.log(`${voices.length} voices loaded`);
+      console.log("Voices loaded:", voices);
     }
-
     speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
 
-    // Text-to-Speech function
     function speakText(text) {
       speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "en-US";
       if (voices.length) {
-        const preferredVoice = voices.find(v =>
-          v.lang.includes("en-US") && !v.name.includes("Google")
-        ) || voices.find(v => v.lang.includes("en-US")) || voices[0];
-        utterance.voice = preferredVoice;
+        msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
       }
-
-      utterance.onerror = (e) => console.error("TTS error:", e.error);
-      utterance.onstart = () => console.log("TTS started");
-      utterance.onend = () => console.log("TTS ended");
-
-      speechSynthesis.speak(utterance);
+      msg.onerror = e => console.error("TTS error:", e.error);
+      msg.onstart = () => console.log("TTS started");
+      msg.onend = () => console.log("TTS ended");
+      speechSynthesis.speak(msg);
     }
 
-    // Add message to chat
-    function addMessage(content, isUser = false) {
-      const welcomeMsg = chatMessages.querySelector('.welcome-message');
-      if (welcomeMsg) {
-        welcomeMsg.remove();
-      }
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+    let isListening = false;
+    let userText = "";
 
-      const timestamp = new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      messageDiv.innerHTML = `
-        <span class="message-content">${escapeHtml(content)}</span>
-        <span class="timestamp">${timestamp}</span>
-      `;
-
-      chatMessages.appendChild(messageDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // Show error message
-    function showError(message) {
-      const existingError = document.querySelector('.error-banner');
-      if (existingError) {
-        existingError.remove();
-      }
-
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'error-banner';
-      errorDiv.textContent = message;
-      errorDiv.title = 'Click to dismiss';
-
-      errorDiv.addEventListener('click', () => {
-        errorDiv.remove();
-      });
-
-      chatMessages.appendChild(errorDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-
-      setTimeout(() => {
-        if (errorDiv.parentNode) {
-          errorDiv.remove();
-        }
-      }, 5000);
-    }
-
-    // Escape HTML to prevent XSS
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Update button state
-    function updateButtonState(state) {
-      recordBtn.className = `recording-button ${state}`;
-
-      switch(state) {
-        case 'listening':
-          buttonStatus.textContent = "Listening... Release to send";
-          break;
-        case 'processing':
-          buttonStatus.textContent = "Processing your message";
-          processingIndicator.classList.add('show');
-          break;
-        default:
-          buttonStatus.textContent = "Ready to record";
-          processingIndicator.classList.remove('show');
-      }
-    }
-
-    // Send text to webhook
-    async function sendToWebhook(text) {
-      updateButtonState('processing');
-
-      try {
-        const response = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
-          method: "GET",
-          mode: "cors",
-          headers: {
-            'Accept': 'text/plain'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status} ${response.statusText}`);
-        }
-
-        const aiReply = await response.text();
-
-        if (aiReply.trim()) {
-          addMessage(aiReply, false);
-          speakText(aiReply);
-        } else {
-          throw new Error("Empty response from server");
-        }
-
-      } catch (error) {
-        console.error("Webhook error:", error);
-        showError(`Failed to get AI response: ${error.message}`);
-      } finally {
-        updateButtonState('');
-        isProcessing = false;
-      }
-    }
-
-    // Event Listeners
-    if (recognition) {
-      recordBtn.addEventListener("mousedown", startRecording);
-      recordBtn.addEventListener("mouseup", stopRecording);
-      recordBtn.addEventListener("touchstart", startRecording);
-      recordBtn.addEventListener("touchend", stopRecording);
-
-      recordBtn.addEventListener("keydown", (e) => {
-        if (e.code === "Space" || e.code === "Enter") {
-          e.preventDefault();
-          startRecording();
-        }
-      });
-
-      recordBtn.addEventListener("keyup", (e) => {
-        if (e.code === "Space" || e.code === "Enter") {
-          e.preventDefault();
-          stopRecording();
-        }
-      });
-
-      recognition.onstart = () => {
-        console.log("Recognition started");
+    // Start recording
+    speakBtn.addEventListener("mousedown", () => {
+      if (!isListening) {
         isListening = true;
-      };
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript.trim();
-        console.log("Recognition result:", transcript);
-
-        if (transcript) {
-          addMessage(transcript, true);
-          sendToWebhook(transcript);
-        } else {
-          showError("No speech detected. Please try again.");
-          updateButtonState('');
-          isProcessing = false;
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Recognition error:", event.error);
-        let errorMessage = "Speech recognition error";
-
-        switch(event.error) {
-          case 'no-speech':
-            errorMessage = "No speech detected. Please try again.";
-            break;
-          case 'audio-capture':
-            errorMessage = "No microphone found. Please check your microphone.";
-            break;
-          case 'not-allowed':
-            errorMessage = "Microphone access denied. Please allow microphone access.";
-            break;
-          case 'network':
-            errorMessage = "Network error. Please check your connection.";
-            break;
-          default:
-            errorMessage = `Speech recognition error: ${event.error}`;
-        }
-
-        showError(errorMessage);
-        updateButtonState('');
-        isListening = false;
-        isProcessing = false;
-      };
-
-      recognition.onend = () => {
-        console.log("Recognition ended");
-        isListening = false;
-        if (!isProcessing) {
-          updateButtonState('');
-        }
-      };
-    }
-
-    function startRecording() {
-      if (!recognition) {
-        showError("Speech recognition not available");
-        return;
-      }
-
-      if (isListening || isProcessing) return;
-
-      updateButtonState('listening');
-
-      try {
+        transcriptBox.value = "";
         recognition.start();
-      } catch (error) {
-        console.error("Failed to start recognition:", error);
-        showError("Failed to start recording");
-        updateButtonState('');
+        speakBtn.innerText = "Listening…";
       }
-    }
+    });
 
-    function stopRecording() {
-      if (!isListening) return;
-
-      try {
+    // Stop recording and send
+    speakBtn.addEventListener("mouseup", () => {
+      if (isListening) {
         recognition.stop();
-        isProcessing = true;
-      } catch (error) {
-        console.error("Failed to stop recognition:", error);
-        updateButtonState('');
         isListening = false;
-        isProcessing = false;
+        speakBtn.innerText = "Hold to Speak";
+      }
+    });
+
+    recognition.onresult = e => {
+      userText = e.results[0][0].transcript;
+      transcriptBox.value = "You: " + userText;
+      sendToWebhook(userText);
+    };
+
+    recognition.onerror = e => {
+      console.error("STT error:", e.error);
+      transcriptBox.value = "Error: " + e.error;
+      isListening = false;
+      speakBtn.innerText = "Hold to Speak";
+    };
+
+    async function sendToWebhook(text) {
+      transcriptBox.value += "\n(Waiting for AI reply...)";
+      try {
+        const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
+          method: "GET", mode: "cors"
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const aiReply = await res.text();
+        transcriptBox.value = "You: " + userText + "\nAI: " + aiReply;
+        speakText(aiReply);  // 🔊 Play TTS automatically
+      } catch (err) {
+        console.error("Fetch error:", err);
+        transcriptBox.value += "\nError: " + err.message;
       }
     }
-
-    // Handle page visibility changes
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && isListening) {
-        stopRecording();
-      }
-    });
-
-    // Prevent context menu on long press for mobile
-    recordBtn.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-    });
-
-    console.log("Voice chat app initialized");
   </script>
 </body>
 </html>
