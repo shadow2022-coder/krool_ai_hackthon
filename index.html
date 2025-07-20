@@ -1,116 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Voice AI Chat</title>
+  <meta charset="UTF-8" />
+  <title>STT + Automatic TTS Web App</title>
   <style>
-    #voiceBtn { width:100px; height:100px; border-radius:50%; font-size:2rem; cursor:pointer; }
-    #status { margin-top:1rem; font-family:sans-serif; }
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f4f4; }
+    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
+    button { padding: 1rem 2rem; font-size: 1rem; background-color: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    textarea { width: 100%; height: 120px; margin-top: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
   </style>
 </head>
 <body>
-  <button id="voiceBtn">🎤</button>
-  <div id="status">Idle</div>
+  <div class="container">
+    <h2>Press & Speak — auto TTS reply</h2>
+    <textarea id="transcript" readonly placeholder="Your speech & AI reply appear here…"></textarea><br>
+    <button id="speakBtn">Hold to Speak</button>
+  </div>
 
-<script>
-const btn = document.getElementById('voiceBtn');
-const status = document.getElementById('status');
+  <script>
+    const WEBHOOK_URL = "https://auto.mithil.hackclub.app/webhook/parse-voice";
+    const speakBtn = document.getElementById("speakBtn");
+    const transcriptBox = document.getElementById("transcript");
+    let voices = [];
 
-let state = 'idle';
-let mainRec, bgRec, utterance;
+    // Load voices when available
+    function loadVoices() {
+      voices = speechSynthesis.getVoices();
+      console.log("Voices loaded:", voices);
+    }
+    speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
 
-function init() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    status.textContent = 'Web Speech API not supported';
-    btn.disabled = true;
-    return;
-  }
-  mainRec = new SR();
-  bgRec   = new SR();
+    function speakText(text) {
+      speechSynthesis.cancel();
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "en-US";
+      if (voices.length) {
+        msg.voice = voices.find(v => v.lang.includes("en-US")) || voices[0];
+      }
+      msg.onerror = e => console.error("TTS error:", e.error);
+      msg.onstart = () => console.log("TTS started");
+      msg.onend = () => console.log("TTS ended");
+      speechSynthesis.speak(msg);
+    }
 
-  [mainRec, bgRec].forEach(r => {
-    r.continuous = true;
-    r.interimResults = false;
-    r.lang = 'en-US';
-  });
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-  mainRec.onresult = e => {
-    const txt = e.results[e.resultIndex][0].transcript.trim();
-    if (txt) handleUser(txt);
-  };
-  mainRec.onend = () => { if (state === 'listening') mainRec.start(); };
+    let isListening = false;
+    let userText = "";
 
-  bgRec.onresult = () => {
-    if (state === 'speaking') stopSpeaking(true);
-  };
-}
-
-function updateUI() {
-  const icons = { idle:'🎤', listening:'🔴', speaking:'🗣️' };
-  btn.textContent = icons[state];
-  status.textContent = state.charAt(0).toUpperCase() + state.slice(1);
-}
-
-function startListening(){
-  state = 'listening';
-  mainRec.start();
-  updateUI();
-}
-
-function stopListening(){
-  state = 'idle';
-  mainRec.stop();
-  updateUI();
-}
-
-function handleUser(text){
-  stopListening();
-  console.log("User:", text);
-  const url = 'https://auto.mithil.hackclub.app/webhook/parse-voice?text=${encodeURIComponent(text)}';
-  fetch(url, { method:'GET' })
-    .then(r => r.json())
-    .then(data => speak(data.reply))
-    .catch(err => {
-      console.error(err);
-      state='idle';
-      updateUI();
+    // Start recording
+    speakBtn.addEventListener("mousedown", () => {
+      if (!isListening) {
+        isListening = true;
+        transcriptBox.value = "";
+        recognition.start();
+        speakBtn.innerText = "Listening…";
+      }
     });
-}
 
-function speak(txt){
-  utterance = new SpeechSynthesisUtterance(txt);
-  utterance.lang = 'en-US';
-  state = 'speaking';
-  updateUI();
+    // Stop recording and send
+    speakBtn.addEventListener("mouseup", () => {
+      if (isListening) {
+        recognition.stop();
+        isListening = false;
+        speakBtn.innerText = "Hold to Speak";
+      }
+    });
 
-  utterance.onstart = () => bgRec.start();
-  utterance.onend   = () => {
-    bgRec.stop();
-    state = 'idle';
-    updateUI();
-    startListening();
-  };
+    recognition.onresult = e => {
+      userText = e.results[0][0].transcript;
+      transcriptBox.value = "You: " + userText;
+      sendToWebhook(userText);
+    };
 
-  speechSynthesis.speak(utterance);
-}
+    recognition.onerror = e => {
+      console.error("STT error:", e.error);
+      transcriptBox.value = "Error: " + e.error;
+      isListening = false;
+      speakBtn.innerText = "Hold to Speak";
+    };
 
-function stopSpeaking(interrupted=false){
-  speechSynthesis.cancel();
-  bgRec.stop();
-  state = 'idle';
-  updateUI();
-  startListening();
-}
-
-btn.addEventListener('click', () => {
-  if (state === 'idle') startListening();
-  else if (state === 'listening') stopListening();
-  else if (state === 'speaking') stopSpeaking(true);
-});
-
-init();
-updateUI();
-</script>
+    async function sendToWebhook(text) {
+      transcriptBox.value += "\n(Waiting for AI reply...)";
+      try {
+        const res = await fetch(`${WEBHOOK_URL}?text=${encodeURIComponent(text)}`, {
+          method: "GET", mode: "cors"
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const aiReply = await res.text();
+        transcriptBox.value = "You: " + userText + "\nAI: " + aiReply;
+        speakText(aiReply);  // 🔊 Play TTS automatically
+      } catch (err) {
+        console.error("Fetch error:", err);
+        transcriptBox.value += "\nError: " + err.message;
+      }
+    }
+  </script>
 </body>
 </html>
